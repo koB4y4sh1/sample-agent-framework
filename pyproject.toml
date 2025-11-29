@@ -1,5 +1,5 @@
 [project]
-name = "cookbook-microsoft-agent-framework"
+name = "sample-agent-framework"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
