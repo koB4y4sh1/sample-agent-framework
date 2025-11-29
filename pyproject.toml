@@ -8,3 +8,6 @@ dependencies = [
     "agent-framework>=1.0.0b251120",
     "ruff>=0.14.7",
 ]
+
+[tool.uv]
+prerelease = "allow"
