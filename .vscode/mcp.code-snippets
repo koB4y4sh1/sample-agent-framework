@@ -1,0 +1,34 @@
+{
+    "MCP Tool": {
+        "prefix": "mcptool",
+        "body": [
+            "@server.call_tool()",
+            "async def ${1:tool_name}(${2:param}: ${3:str}) -> list[types.TextContent]:",
+            "    \"\"\"${4:ツールの説明}",
+            "    ",
+            "    Args:",
+            "        ${2}: ${5:パラメータの説明}",
+            "    ",
+            "    Returns:",
+            "        ${6:戻り値の説明}",
+            "    \"\"\"",
+            "    result = await ${7:process}(${2})",
+            "    return [types.TextContent(type=\"text\", text=result)]"
+        ],
+        "description": "MCPツールの基本テンプレート"
+    },
+    "MCP Error Handler": {
+        "prefix": "mcperror",
+        "body": [
+            "try:",
+            "    ${1:# 処理内容}",
+            "except ${2:SpecificError} as e:",
+            "    logger.error(f\"${3:エラーメッセージ}: {e}\")",
+            "    return [types.TextContent(",
+            "        type=\"text\",",
+            "        text=f\"エラーが発生しました: {str(e)}\"",
+            "    )]"
+        ],
+        "description": "MCPエラーハンドリングテンプレート"
+    }
+}

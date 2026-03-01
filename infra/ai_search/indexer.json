@@ -1,0 +1,16 @@
+{
+  "@odata.context": "https://srch-gptapp-dev.search.windows.net/$metadata#indexers/$entity",
+  "@odata.etag": "\"0x8DE486350E3B44C\"",
+  "name": "terraform-changelog-indexer",
+  "description": null,
+  "dataSourceName": "azureblob-changelog-datasource",
+  "skillsetName": "terraform-changelog-skillset",
+  "targetIndexName": "terraform-changelog-index",
+  "disabled": null,
+  "schedule": null,
+  "parameters": null,
+  "fieldMappings": [],
+  "outputFieldMappings": [],
+  "cache": null,
+  "encryptionKey": null
+}

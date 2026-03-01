@@ -1,0 +1,54 @@
+{
+  "@odata.etag": "\"0x8DE48623A3EB726\"",
+  "name": "terraform-changelog-skillset",
+  "description": "Skillset for Terraform CHANGELOG and Migration Guide",
+  "skills": [
+    {
+      "@odata.type": "#Microsoft.Skills.Text.SplitSkill",
+      "name": "split-by-heading",
+      "description": "Split markdown by headings",
+      "context": "/document",
+      "defaultLanguageCode": "en",
+      "textSplitMode": "pages",
+      "maximumPageLength": 4000,
+      "pageOverlapLength": 200,
+      "maximumPagesToTake": 0,
+      "unit": "characters",
+      "inputs": [
+        {
+          "name": "text",
+          "source": "/document/content",
+          "inputs": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "textItems",
+          "targetName": "chunks"
+        }
+      ]
+    },
+    {
+      "@odata.type": "#Microsoft.Skills.Text.AzureOpenAIEmbeddingSkill",
+      "name": "embed-content",
+      "context": "/document/chunks/*",
+      "resourceUri": "https://aif-gptapp-dev-eastus2.openai.azure.com",
+      "deploymentId": "text-embedding-3-small",
+      "dimensions": 1536,
+      "modelName": "text-embedding-3-small",
+      "inputs": [
+        {
+          "name": "text",
+          "source": "/document/chunks/*",
+          "inputs": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "embedding",
+          "targetName": "contentVector"
+        }
+      ]
+    }
+  ]
+}

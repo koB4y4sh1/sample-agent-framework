@@ -1,0 +1,18 @@
+properties:
+  template:
+    containers:
+      - name: supergateway
+        image: <YOUR_SUPERGATEWAY_IMAGE>
+        env:
+          - name: PORT
+            value: "8000"
+        ports:
+          - containerPort: 8000
+        # NOTE: ingress は main container で指定
+      - name: mcp-server
+        image: mcp/aws-documentation:latest
+        env:
+          - name: FASTMCP_LOG_LEVEL
+            value: "ERROR"
+          - name: AWS_DOCUMENTATION_PARTITION
+            value: "aws"

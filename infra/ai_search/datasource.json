@@ -1,0 +1,22 @@
+{
+  "@odata.context": "https://srch-gptapp-dev.search.windows.net/$metadata#datasources/$entity",
+  "@odata.etag": "\"0x8DE485E8280D8C0\"",
+  "name": "azureblob-changelog-datasource",
+  "description": null,
+  "type": "azureblob",
+  "subtype": null,
+  "indexerPermissionOptions": [],
+  "credentials": {
+    "connectionString": "ResourceId=/subscriptions/0415ec0a-626a-4b8e-bb7d-8b7ee0406c29/resourceGroups/rg-gptapp-dev-001/providers/Microsoft.Storage/storageAccounts/stggptapp001;"
+  },
+  "container": {
+    "name": "changelog",
+    "query": null
+  },
+  "dataChangeDetectionPolicy": null,
+  "dataDeletionDetectionPolicy": {
+    "@odata.type": "#Microsoft.Azure.Search.NativeBlobSoftDeleteDeletionDetectionPolicy"
+  },
+  "encryptionKey": null,
+  "identity": null
+}

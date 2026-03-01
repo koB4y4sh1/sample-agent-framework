@@ -1,6 +1,6 @@
 import asyncio
 from agent_framework import ChatMessage, TextContent, UriContent, Role
-from agent_framework.azure import AzureOpenAIChatClient
+from agent_framework.azure import AzureOpenAIChatClient,AzureAIAgentClient
 from azure.identity import AzureCliCredential
 
 # 0. 事前準備
@@ -8,11 +8,16 @@ from azure.identity import AzureCliCredential
     # 環境変数(.env)の設定・AZURE_OPENAI_ENDPOINT,AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
 
 # 1. エージェントを作成する
+# 1-1. Azure OpenAI endpoint
 agent = AzureOpenAIChatClient(credential=AzureCliCredential()).create_agent(
     instructions="You are good at telling jokes.",
     name="Joker"
 )
-
+# 1-2. Microsoft Foundry project endpoint
+project_agent = AzureAIAgentClient(async_credential=AzureCliCredential()).create_agent(
+    instructions="You are good at telling jokes.",
+    name="Joker"
+)
 
 # 2. エージェントを実行する
 async def main():
@@ -25,13 +30,12 @@ asyncio.run(main())
 # 3. ストリーミングを使用したエージェントの実行
 async def stream(): 
     print("↓ エージェントの結果（ストリーム）:")
-    async for update in agent.run_stream("Tell me a joke about a pirate."):
+    async for update in project_agent.run_stream("Tell me a joke about a pirate."):
         if update.text:
             print(update.text, end="", flush=True)
     print()
 
 asyncio.run(stream())
-
 
 # 4. ChatMessage を使用したエージェントの実行
 message = ChatMessage(
