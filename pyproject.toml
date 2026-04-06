@@ -5,11 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "agent-framework==1.0.0b251120",
+    "agent-framework==1.0.0",
     "debugpy>=1.8.19",
     "fastmcp>=2.14.2",
     "ruff>=0.14.7",
 ]
 
-[tool.uv]
-prerelease = "allow"
