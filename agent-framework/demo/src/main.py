@@ -1,11 +1,12 @@
 import asyncio
 
-from app import DemoApplication
+from app import DemoApplication, DemoConfig
 from chat_cli import DemoChatCLI
 
 
 async def main() -> None:
-    app = DemoApplication()
+    selected_model = DemoChatCLI.select_model()
+    app = DemoApplication(config=DemoConfig(model=selected_model))
     session = app.create_session()
     cli = DemoChatCLI(
         agent=app.agent,

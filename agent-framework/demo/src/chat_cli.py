@@ -1,59 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from agent_framework import Agent, Content, Message
+from settings import load_model_settings_list
+from stream_renderer import BaseStream
+from utils.file import AttachmentBuffer
+from utils.print import print_color
 
-from color_print import print_color
-from stream_renderer import StreamRenderer
-
-
-class AttachmentBuffer:
-    """次のユーザーメッセージ送信まで添付ファイルを保持する。"""
-
-    def __init__(self) -> None:
-        self._contents: list[Content] = []
-
-    def add_image(self, path: str) -> None:
-        file_path = Path(path)
-        media_type = self._guess_media_type(file_path)
-        self._contents.append(Content.from_data(data=file_path.read_bytes(), media_type=media_type))
-
-    def add_file(self, path: str) -> None:
-        file_path = Path(path)
-        media_type = self._guess_media_type(file_path)
-        self._contents.append(Content.from_data(data=file_path.read_bytes(), media_type=media_type))
-
-    def consume(self) -> list[Content]:
-        contents = list(self._contents)
-        self._contents.clear()
-        return contents
-
-    def clear(self) -> None:
-        self._contents.clear()
-
-    @property
-    def size(self) -> int:
-        return len(self._contents)
-
-    def _guess_media_type(self, file_path: Path) -> str:
-        suffix = file_path.suffix.lower()
-        if suffix == ".png":
-            return "image/png"
-        if suffix in {".jpg", ".jpeg"}:
-            return "image/jpeg"
-        if suffix == ".webp":
-            return "image/webp"
-        if suffix == ".pdf":
-            return "application/pdf"
-        if suffix == ".docx":
-            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if suffix == ".xlsx":
-            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if suffix == ".pptx":
-            return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        raise ValueError(f"Unsupported attachment type: {file_path.suffix}")
+from color_print import print_green, print_yellow
 
 
 class DemoChatCLI:
@@ -64,13 +19,39 @@ class DemoChatCLI:
         agent: Agent,
         session: Any,
         code_interpreter_status: str,
-        stream_renderer: StreamRenderer,
+        stream_renderer: BaseStream,
     ) -> None:
         self._agent = agent
         self._session = session
         self._attachments = AttachmentBuffer()
         self._code_interpreter_status = code_interpreter_status
         self._stream_renderer = stream_renderer
+
+    @classmethod
+    def select_model(cls) -> str:
+        models = load_model_settings_list()
+        if not models:
+            raise ValueError("No model settings were found in settings/model.json.")
+
+        print_green("Available models:")
+        for index, model in enumerate(models, start=1):
+            print_green(f"  {index}. {model.model_name}")
+
+        while True:
+            try:
+                selection = input("Select model number: ").strip()
+            except EOFError as error:
+                raise RuntimeError("Model selection requires an interactive terminal.") from error
+
+            if not selection.isdigit():
+                print_yellow("Please enter a valid number.")
+                continue
+
+            selected_index = int(selection)
+            if 1 <= selected_index <= len(models):
+                return models[selected_index - 1].model_name
+
+            print_yellow("Please choose a number from the list.")
 
     async def run(self) -> None:
         self._print_help()

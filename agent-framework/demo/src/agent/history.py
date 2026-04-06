@@ -7,16 +7,11 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from agent_framework import (
-    AgentSession,
-    ContextProvider,
     HistoryProvider,
     Message,
-    SessionContext,
-    SupportsAgentRun,
 )
-from message_converter import AnthropicMessageConverter
 
-MEMORY_ROOT_DIR = Path(__file__).parent / ".history"
+MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
 
 
 class MessageStore(ABC):
@@ -31,7 +26,7 @@ class MessageStore(ABC):
         """メッセージを書き込む。"""
 
 
-class LocalFileStore(MessageStore):
+class LocalStore(MessageStore):
     """ローカルのデモ用ディレクトリ配下に JSON としてメッセージを保存する。"""
 
     def __init__(self) -> None:
@@ -54,8 +49,8 @@ class LocalFileStore(MessageStore):
         return MEMORY_ROOT_DIR / f"{safe_session_id}.json"
 
 
-class HistoryManager(HistoryProvider):
-    """生の会話履歴を永続化し、次回実行時に再投入する。"""
+class LocalHistoryProvider(HistoryProvider):
+    """会話履歴を永続化 Provider"""
 
     DEFAULT_SOURCE_ID: ClassVar[str] = "demo_history"
 
@@ -142,80 +137,3 @@ class HistoryManager(HistoryProvider):
             additional_properties=dict(original.additional_properties),
             raw_representation=original.raw_representation,
         )
-
-
-class ConversationMemoryProvider(ContextProvider):
-    """履歴を選別し、トークン数を見ながらメモリ用 instruction を注入する。"""
-
-    DEFAULT_SOURCE_ID: ClassVar[str] = "demo_memory"
-
-    def __init__(
-        self,
-        anthropic_client: Any,
-        model: str,
-        *,
-        history_source_id: str = HistoryManager.DEFAULT_SOURCE_ID,
-        source_id: str | None = None,
-        max_history_messages: int = 12,
-        max_input_tokens: int = 6000,
-    ) -> None:
-        super().__init__(source_id or self.DEFAULT_SOURCE_ID)
-        self._anthropic_client = anthropic_client
-        self._model = model
-        self._history_source_id = history_source_id
-        self._max_history_messages = max_history_messages
-        self._max_input_tokens = max_input_tokens
-        self._converter = AnthropicMessageConverter()
-
-    async def before_run(
-        self,
-        *,
-        agent: SupportsAgentRun,
-        session: AgentSession,
-        context: SessionContext,
-        state: dict[str, Any],
-    ) -> None:
-        history_messages = context.get_messages(sources={self._history_source_id})
-        selected_messages = await self._fit_history_to_budget(history_messages, context.input_messages)
-        if not selected_messages:
-            return
-        context.extend_instructions(self.source_id, self._build_memory_instruction(selected_messages))
-
-    async def after_run(
-        self,
-        *,
-        agent: SupportsAgentRun,
-        session: AgentSession,
-        context: SessionContext,
-        state: dict[str, Any],
-    ) -> None:
-        return None
-
-    async def _fit_history_to_budget(
-        self,
-        history_messages: Sequence[Message],
-        input_messages: Sequence[Message],
-    ) -> list[Message]:
-        selected_messages = list(history_messages[-self._max_history_messages :])
-        while selected_messages:
-            input_token_count = await self._count_tokens([*selected_messages, *input_messages])
-            if input_token_count <= self._max_input_tokens:
-                return selected_messages
-            selected_messages.pop(0)
-        return []
-
-    async def _count_tokens(self, messages: Sequence[Message]) -> int:
-        token_count = await self._anthropic_client.messages.count_tokens(
-            model=self._model,
-            messages=self._converter.convert_messages(messages),
-        )
-        return token_count.input_tokens
-
-    def _build_memory_instruction(self, messages: Sequence[Message]) -> str:
-        lines: list[str] = ["Use the following recent conversation history as reference."]
-        for message in messages:
-            text = (message.text or "").strip()
-            if not text:
-                continue
-            lines.append(f"{message.role}: {text}")
-        return "\n".join(lines)

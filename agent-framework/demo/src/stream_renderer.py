@@ -6,13 +6,12 @@ from typing import Any, Literal
 
 from agent_framework import Content
 from anthropic.types.beta import BetaWebSearchToolResultBlock
-
-from color_print import print_color
+from utils.print import print_color
 
 ProviderFamily = Literal["anthropic", "openai", "gemini"]
 
 
-class StreamRenderer(ABC):
+class BaseStream(ABC):
     """ストリーミング出力の差分を provider ごとに吸収する抽象基底クラス。"""
 
     def __init__(self) -> None:
@@ -23,7 +22,6 @@ class StreamRenderer(ABC):
         """1 回の assistant 応答表示を開始する。"""
         self._current_output_type = None
         self._has_output = False
-        self._print_assistant_header()
 
     @abstractmethod
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -33,8 +31,6 @@ class StreamRenderer(ABC):
         """1 回の assistant 応答表示を終了する。"""
         print()
 
-    def _print_assistant_header(self) -> None:
-        self._print_assistant("[Assistant]", flush=True)
 
     def _start_output_block(
         self,
@@ -72,7 +68,7 @@ class StreamRenderer(ABC):
         print_color(*values, color="bright_yellow", styles=("bold",), **kwargs)
 
 
-class AnthropicStreamRenderer(StreamRenderer):
+class AnthropicStream(BaseStream):
     """Anthropic 系クライアント向けのストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -86,28 +82,28 @@ class AnthropicStreamRenderer(StreamRenderer):
                 self._print_reasoning(content.text, end="", flush=True)
             elif content.type == "function_call":
                 self._start_output_block(next_output_type="function_call")
-                self._print_tool_call(f"[Tool Call] name: {content.name}, arguments: {content.arguments}", end="", flush=True)
+                self._print_tool_call(f"[Tool Call] name: {content.name}, arguments: {content.arguments}")
             elif content.type == "function_result":
                 self._start_output_block(next_output_type="function_result")
                 if isinstance(content.raw_representation, BetaWebSearchToolResultBlock):
                     # web_search
                     for result in content.raw_representation.content:
-                        self._print_tool_result(f"[Tool Result] title: {result.title} url: {result.url}, page_age: {result.page_age}", end="", flush=True)
+                        self._print_tool_result(f"[Tool Result] title: {result.title} url: {result.url}, page_age: {result.page_age}")
                 else:
-                    self._print_tool_result(f"[Tool Result] {content.result}", end="", flush=True)
+                    self._print_tool_result(f"[Tool Result] {content.result}")
             elif content.type == "mcp_server_tool_call":
                 self._start_output_block(next_output_type="mcp_server_tool_call")
-                self._print_mcp_call(f"[MCP Call] name: {content.tool_name}, arguments: {content.arguments}", end="", flush=True)
+                self._print_mcp_call(f"[MCP Call] name: {content.tool_name}, arguments: {content.arguments}")
             elif content.type == "mcp_server_tool_result":
                 self._start_output_block(next_output_type="mcp_server_tool_result")
-                self._print_mcp_result(f"[MCP Result] {content.text}", end="", flush=True)
+                self._print_mcp_result(f"[MCP Result] {content.text}")
             elif content.type == "usage" and content.usage_details:
                 self._start_output_block(next_output_type="usage")
                 input_tokens = content.usage_details.get("input_token_count")
                 output_tokens = content.usage_details.get("output_token_count")
                 input_cache = content.usage_details.get("anthropic.cache_creation_input_tokens")
                 output_cache = content.usage_details.get("anthropic.cache_read_input_tokens")
-                self._print_usage(f"[Usage] input: {input_tokens}, output: {output_tokens}, input_cache: {input_cache}, output_cache: {output_cache}", end="", flush=True)
+                self._print_usage(f"[Usage] input: {input_tokens}, output: {output_tokens}, input_cache: {input_cache}, output_cache: {output_cache}")
 
         if text:
             self._start_output_block(
@@ -118,7 +114,7 @@ class AnthropicStreamRenderer(StreamRenderer):
             self._print_assistant(text, end="", flush=True)
 
 
-class OpenAIStreamRenderer(StreamRenderer):
+class OpenAIStream(BaseStream):
     """OpenAI 系クライアント向けの最小ストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -149,7 +145,7 @@ class OpenAIStreamRenderer(StreamRenderer):
             self._print_assistant(text, end="", flush=True)
 
 
-class GeminiStreamRenderer(StreamRenderer):
+class GeminiStream(BaseStream):
     """Gemini 系クライアント向けの最小ストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -180,17 +176,17 @@ class GeminiStreamRenderer(StreamRenderer):
             self._print_assistant(text, end="", flush=True)
 
 
-class StreamRendererResolver:
+class StreamResolver:
     """provider 種別に応じた stream renderer を解決する。"""
 
     def __init__(self, provider_family: ProviderFamily) -> None:
         self._provider_family = provider_family
 
-    def resolve(self) -> StreamRenderer:
+    def resolve(self) -> BaseStream:
         if self._provider_family == "anthropic":
-            return AnthropicStreamRenderer()
+            return AnthropicStream()
         if self._provider_family == "openai":
-            return OpenAIStreamRenderer()
+            return OpenAIStream()
         if self._provider_family == "gemini":
-            return GeminiStreamRenderer()
+            return GeminiStream()
         raise ValueError(f"Unsupported provider family: {self._provider_family}")

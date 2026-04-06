@@ -22,7 +22,7 @@ def get_weather(
     return f"{location} の天気は {conditions[randint(0, 3)]} で、最高気温は {randint(10, 30)} ℃ です。"
 
 
-class DemoToolkit:
+class DemoTools:
     """デモ用のツールキット"""
 
     def __init__(self, client: BaseChatClient[Any]) -> None:

@@ -1,15 +1,24 @@
 {
-    // IntelliSense を使用して利用可能な属性を学べます。
-    // 既存の属性の説明をホバーして表示します。
-    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python デバッガー: 現在のファイル",
+            "name": "Python Debug: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "env": {
+                "MCP_LOG_LEVEL": "DEBUG",
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Demo App",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent-framework/demo/src/main.py",
+            "console": "externalTerminal",
             "env": {
                 "MCP_LOG_LEVEL": "DEBUG",
                 "PYTHONPATH": "${workspaceFolder}"
@@ -27,6 +36,6 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
-        },
+        }
     ]
 }

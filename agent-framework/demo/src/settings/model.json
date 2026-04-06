@@ -1,0 +1,30 @@
+[
+    {
+        "model_name": "claude-sonnet-4-6",
+        "default_options": {
+            "max_tokens": 8000,
+            "thinking": {
+                "type": "adaptive"
+            }
+        }
+    },
+    {
+        "model_name": "claude-opus-4-6",
+        "default_options": {
+            "max_tokens": 10000,
+            "thinking": {
+                "type": "adaptive"
+            }
+        }
+    },
+    {
+        "model_name": "claude-haiku-4-5",
+        "default_options": {
+            "max_tokens": 4000,
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 10000
+            }
+        }
+    }
+]

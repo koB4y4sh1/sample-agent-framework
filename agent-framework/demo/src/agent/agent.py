@@ -9,10 +9,10 @@ from agent_framework import Agent, BaseChatClient
 @dataclass(slots=True)
 class DemoAgentConfig:
     model_name: str
-    max_tokens: int
+    default_options: Any
 
 
-class DemoAgentFactory:
+class DemoAgent:
     """準備済みの依存オブジェクトから Anthropic デモ用 Agent を構築する。"""
 
     def __init__(
@@ -23,6 +23,7 @@ class DemoAgentFactory:
         history_provider,
         memory_provider,
         skills_provider,
+        compaction_provider,
         toolkit,
     ) -> None:
         self._config = config
@@ -30,9 +31,17 @@ class DemoAgentFactory:
         self._history_provider = history_provider
         self._memory_provider = memory_provider
         self._skills_provider = skills_provider
+        self._compaction_provider = compaction_provider
         self._toolkit = toolkit
 
     def create(self) -> Agent:
+        context_providers = [
+            self._history_provider,
+            self._memory_provider,
+            self._skills_provider,
+            self._compaction_provider,
+        ]
+
         return Agent(
             client=self._client,
             name="AnthropicDemoAgent",
@@ -40,16 +49,9 @@ class DemoAgentFactory:
                 "You are a helpful assistant. Use tools when appropriate. "
                 "If multimodal input exists, reference it explicitly."
             ),
-            context_providers=[
-                self._history_provider,
-                self._memory_provider,
-                self._skills_provider,
-            ],
+            context_providers=context_providers,
             tools=[
                 *self._toolkit.build_tools(),
             ],
-            default_options={
-                "max_tokens": self._config.max_tokens,
-                "thinking": {"type": "adaptive"},
-            },
+            default_options=self._config.default_options,
         )
