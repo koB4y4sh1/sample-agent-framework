@@ -1,12 +1,17 @@
-from .agent import DemoAgent, DemoAgentConfig
 from .compaction import DemoCompactionConfig, DemoCompactionProvider
-from .context import CustomContextProvider
+from .definition import DemoAgent, DemoAgentConfig
+from .execution import ExecutionContextProvider
 from .history import LocalHistoryProvider, LocalStore, MessageStore
+from .policy import PreferencePolicyProvider
 from .skills import DemoSkills
 from .tools import DemoTools
+from .user_profile import UserProfile, UserProfileContextProvider
 
 __all__ = [
-    "CustomContextProvider",
+    "UserProfile",
+    "UserProfileContextProvider",
+    "ExecutionContextProvider",
+    "PreferencePolicyProvider",
     "DemoCompactionConfig",
     "DemoCompactionProvider",
     "DemoAgentConfig",

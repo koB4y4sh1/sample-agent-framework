@@ -1,24 +1,26 @@
 from __future__ import annotations
- 
+
 from dataclasses import dataclass
- 
+
 from agent import (
-    CustomContextProvider,
     DemoAgent,
     DemoAgentConfig,
     DemoCompactionConfig,
     DemoCompactionProvider,
     DemoSkills,
     DemoTools,
+    ExecutionContextProvider,
     LocalHistoryProvider,
     LocalStore,
+    PreferencePolicyProvider,
+    UserProfileContextProvider,
 )
 from agent_framework.foundry import AnthropicFoundryClient
 from azure.identity import AzureCliCredential, get_bearer_token_provider
 from settings import load_model_settings
 from ui import ProviderFamily, UIResolver
- 
- 
+
+
 @dataclass(slots=True)
 class DemoConfig:
     provider_family: ProviderFamily = "anthropic"
@@ -58,11 +60,16 @@ class DemoApplication:
             max_messages=self.config.history_limit,
         )
         # メモリ（ユーザープロファイル）
-        self.memory_provider = CustomContextProvider(
+        self.memory_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
             model=self.config.model,
             history_source_id=self.history_provider.source_id,
         )
+        self.execution_context_provider = ExecutionContextProvider(
+            model=self.config.model,
+            history_source_id=self.history_provider.source_id,
+        )
+        self.preference_policy_provider = PreferencePolicyProvider()
         # 圧縮
         self.compaction_provider = DemoCompactionProvider(
             history_source_id=self.history_provider.source_id,
@@ -92,6 +99,10 @@ class DemoApplication:
             client=self.chat_client,
             history_provider=self.history_provider,
             memory_provider=self.memory_provider,
+            extra_context_providers=[
+                self.execution_context_provider,
+                self.preference_policy_provider,
+            ],
             skills_provider=self.skills_provider,
             toolkit=self.tool,
             compaction_provider=self.compaction_provider,

@@ -13,7 +13,7 @@ class DemoAgentConfig:
 
 
 class DemoAgent:
-    """準備済みの依存オブジェクトから Anthropic デモ用 Agent を構築する。"""
+    """Definition for the demo agent."""
 
     def __init__(
         self,
@@ -22,6 +22,7 @@ class DemoAgent:
         client: BaseChatClient[Any],
         history_provider,
         memory_provider,
+        extra_context_providers,
         skills_provider,
         compaction_provider,
         toolkit,
@@ -30,6 +31,7 @@ class DemoAgent:
         self._client = client
         self._history_provider = history_provider
         self._memory_provider = memory_provider
+        self._extra_context_providers = extra_context_providers
         self._skills_provider = skills_provider
         self._compaction_provider = compaction_provider
         self._toolkit = toolkit
@@ -38,6 +40,7 @@ class DemoAgent:
         context_providers = [
             self._history_provider,
             self._memory_provider,
+            *self._extra_context_providers,
             self._skills_provider,
             self._compaction_provider,
         ]
