@@ -3,6 +3,7 @@ from pathlib import Path
 
 from agent_framework import Agent, Content, Message
 from agent_framework.foundry import AnthropicFoundryClient
+from azure.identity import AzureCliCredential, get_bearer_token_provider
 
 # ローカル ファイル システムからイメージを読み込む
 base_dir = Path(__file__).parent
@@ -13,10 +14,15 @@ excel_bytes = (base_dir / "sample.xlsx").read_bytes()
 powerpoint_bytes = (base_dir / "sample.pptx").read_bytes()
 
 
+token_provider = get_bearer_token_provider( 
+    AzureCliCredential(),
+    "https://ai.azure.com/.default",
+)
+
 # 4. メッセージを含むエージェントを実行
 async def main():
     agent = Agent(
-        client=AnthropicFoundryClient(model="claude-haiku-4-5",),
+        client=AnthropicFoundryClient(model="claude-haiku-4-5", azure_ad_token_provider=token_provider),
         name="WeatherAgent",
         instructions="You are a helpful weather agent.",
     )

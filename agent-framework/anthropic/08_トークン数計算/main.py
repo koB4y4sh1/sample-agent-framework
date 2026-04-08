@@ -3,6 +3,7 @@ from pathlib import Path
 
 from agent_framework import Content, Message
 from agent_framework.foundry import AnthropicFoundryClient
+from azure.identity import AzureCliCredential, get_bearer_token_provider
 from message_converter import AnthropicMessageConverter
 
 from color_print import print_blue
@@ -72,7 +73,12 @@ answer = """
 """
 
 async def main() -> None:
-    client = AnthropicFoundryClient(model="claude-haiku-4-5")
+
+    token_provider = get_bearer_token_provider(
+        AzureCliCredential(),
+        "https://ai.azure.com/.default",
+    )
+    client = AnthropicFoundryClient(model="claude-haiku-4-5", azure_ad_token_provider=token_provider)
     message_converter = AnthropicMessageConverter()
 
     # 1. メッセージの作成
