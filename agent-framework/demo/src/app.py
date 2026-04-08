@@ -14,9 +14,11 @@ from agent import (
     LocalStore,
     PreferencePolicyProvider,
     UserProfileContextProvider,
+    create_anthropic_chat_client,
+    create_gemini_chat_client,
+    create_openai_chat_client,
+    create_token_provider,
 )
-from agent_framework.foundry import AnthropicFoundryClient
-from azure.identity import AzureCliCredential, get_bearer_token_provider
 from settings import load_model_settings
 from ui import ProviderFamily, UIResolver
 
@@ -32,34 +34,29 @@ class DemoConfig:
     compaction_summary_target_count: int = 4
     compaction_summary_threshold: int = 2
     compaction_keep_last_groups: int = 20
- 
- 
+
+
 class DemoApplication:
-    """デモアプリケーションを構成する依存オブジェクトを組み立てる Factory クラス"""
- 
     def __init__(self, config: DemoConfig | None = None) -> None:
         self.config = config or DemoConfig()
-        token_provider = get_bearer_token_provider(
-            AzureCliCredential(process_timeout=30),
-            "https://ai.azure.com/.default",
-        )
-        # チャット用（ユーザー選択）
-        self.chat_client = AnthropicFoundryClient(
+        self.model_settings = load_model_settings(self.config.model)
+        self.provider_family = self.model_settings.provider_family
+
+        token_provider = create_token_provider()
+        self.chat_client = self._create_chat_client(
             model=self.config.model,
-            azure_ad_token_provider=token_provider,
+            token_provider=token_provider,
         )
-        # 軽量モデル（要約、分析用）
-        self.haiku_client = AnthropicFoundryClient(
+        self.haiku_client = create_anthropic_chat_client(
             model="claude-haiku-4-5",
-            azure_ad_token_provider=token_provider,
+            token_provider=token_provider,
         )
-        # 履歴
+
         self.store = LocalStore()
         self.history_provider = LocalHistoryProvider(
             store=self.store,
             max_messages=self.config.history_limit,
         )
-        # メモリ（ユーザープロファイル）
         self.memory_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
             model=self.config.model,
@@ -70,7 +67,6 @@ class DemoApplication:
             history_source_id=self.history_provider.source_id,
         )
         self.preference_policy_provider = PreferencePolicyProvider()
-        # 圧縮
         self.compaction_provider = DemoCompactionProvider(
             history_source_id=self.history_provider.source_id,
             summarizer_client=self.haiku_client,
@@ -82,14 +78,11 @@ class DemoApplication:
                 keep_last_groups=self.config.compaction_keep_last_groups,
             ),
         ).create_provider()
-        # Agent Skills
         self.skills = DemoSkills()
         self.skills_provider = self.skills.build_provider()
-        # Tool (MCP含む)
         self.tool = DemoTools(self.chat_client)
-        self.model_settings = load_model_settings(self.config.model)
-        # Agent
-        self.stream_resolver = UIResolver(self.config.provider_family)
+
+        self.stream_resolver = UIResolver(self.provider_family)
         self.stream_renderer = self.stream_resolver.resolve()
         self.agent = DemoAgent(
             config=DemoAgentConfig(
@@ -104,9 +97,18 @@ class DemoApplication:
                 self.preference_policy_provider,
             ],
             skills_provider=self.skills_provider,
-            toolkit=self.tool,
+            tool=self.tool,
             compaction_provider=self.compaction_provider,
         ).create()
- 
+
     def create_session(self, session_id: str | None = None):
         return self.agent.create_session(session_id=session_id)
+
+    def _create_chat_client(self, *, model: str, token_provider):
+        if self.provider_family == "anthropic":
+            return create_anthropic_chat_client(model=model, token_provider=token_provider)
+        if self.provider_family == "openai":
+            return create_openai_chat_client(model=model)
+        if self.provider_family == "gemini":
+            return create_gemini_chat_client(model=model, token_provider=token_provider)
+        raise ValueError(f"Unsupported provider family: {self.provider_family}")

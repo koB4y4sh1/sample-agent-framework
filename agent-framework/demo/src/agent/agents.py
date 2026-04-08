@@ -25,7 +25,7 @@ class DemoAgent:
         extra_context_providers,
         skills_provider,
         compaction_provider,
-        toolkit,
+        tool,
     ) -> None:
         self._config = config
         self._client = client
@@ -34,7 +34,7 @@ class DemoAgent:
         self._extra_context_providers = extra_context_providers
         self._skills_provider = skills_provider
         self._compaction_provider = compaction_provider
-        self._toolkit = toolkit
+        self._tool = tool
 
     def create(self) -> Agent:
         context_providers = [
@@ -47,14 +47,14 @@ class DemoAgent:
 
         return Agent(
             client=self._client,
-            name="AnthropicDemoAgent",
+            name="DemoAgent",
             instructions=(
                 "You are a helpful assistant. Use tools when appropriate. "
                 "If multimodal input exists, reference it explicitly."
             ),
             context_providers=context_providers,
             tools=[
-                *self._toolkit.build_tools(),
+                *self._tool.build_tools(),
             ],
             default_options=self._config.default_options,
         )

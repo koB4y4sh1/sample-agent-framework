@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from agent_framework import (
-    Agent,
     AgentSession,
     ContextProvider,
     Message,
@@ -14,6 +13,7 @@ from agent_framework import (
 )
 from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
+from utils.print import print_gray
 
 
 class UserProfile(BaseModel):
@@ -30,7 +30,7 @@ class UserProfileContextProvider(ContextProvider):
     DEFAULT_SOURCE_ID = "user_profile_memory"
     PROFILE_STATE_KEY = "user_profile"
     TURN_COUNT_STATE_KEY = "user_profile_turn_count"
-    PROFILE_ROOT_DIR = Path(__file__).parent.parent.parent / ".memory" / "user_profile"
+    PROFILE_ROOT_DIR = Path(__file__).parent.parent.parent.parent / ".memory" 
 
     def __init__(
         self,
@@ -49,7 +49,7 @@ class UserProfileContextProvider(ContextProvider):
         self.PROFILE_ROOT_DIR.mkdir(parents=True, exist_ok=True)
 
     def _debug(self, message: str) -> None:
-        print(f"[context] {message}")
+        print_gray(f"[context] {message}")
 
     async def before_run(
         self,
@@ -126,10 +126,17 @@ class UserProfileContextProvider(ContextProvider):
 
     def _get_username(self) -> str | None:
         for env_name in ("USERNAME", "USER", "LOGNAME"):
+            # 1. .env 環境変数
+            value = os.getenv(env_name, "").strip()
+            if value:
+                return value
+            
+            # 2. OS 環境変数
             value = os.environ.get(env_name, "").strip()
             if value:
                 return value
-        return None
+            
+        return "demouser"
 
     def _get_profile_path(self) -> Path:
         username = self._get_username() or "default"
@@ -166,9 +173,18 @@ class UserProfileContextProvider(ContextProvider):
 
     async def _extract_profile(self, messages: list[Message]) -> UserProfile | None:
         analysis_messages = [
+            Message(
+                "system",
+                [
+                "Extract a structured user profile from the conversation. ",
+                "Only include facts supported by the messages. ",
+                "Return only JSON with keys summary, goals, preferences, constraints, ",
+                "working_style, communication_preferences, recurring_topics.",
+                ],
+            ),
             *messages,
             Message(
-                "",
+                "user",
                 [
                     "Extract a user profile from the conversation history.",
                     "Return only the JSON object that matches the response schema.",
@@ -176,19 +192,8 @@ class UserProfileContextProvider(ContextProvider):
             ),
         ]
 
-        agent = Agent(
-            client=self._analyser_client,
-            name="ProfileExtractor",
-            instructions=(
-                "Extract a structured user profile from the conversation. "
-                "Only include facts supported by the messages. "
-                "Return only JSON with keys summary, goals, preferences, constraints, "
-                "working_style, communication_preferences, recurring_topics."
-            ),
-            default_options={"max_tokens": 800},
-        )
+        response = await self._analyser_client.get_response(analysis_messages, options={"max_tokens": 800,"response_format": UserProfile})
 
-        response = await agent.run(analysis_messages, options={"response_format": UserProfile})
         return response.value
 
     def _merge_profile(self, current: UserProfile, extracted: UserProfile) -> UserProfile:

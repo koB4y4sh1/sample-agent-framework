@@ -3,9 +3,8 @@ import asyncio
 from agent_framework import Agent
 from agent_framework.foundry import AnthropicFoundryClient
 from azure.identity import AzureCliCredential, get_bearer_token_provider
-from providers import HistoryManager, HistoryManeger, create_message_store
-
 from color_print import print_green, print_yellow
+from providers import HistoryManager, HistoryManeger, create_message_store
 
 
 async def main():

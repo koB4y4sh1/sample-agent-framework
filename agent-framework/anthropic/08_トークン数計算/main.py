@@ -4,9 +4,8 @@ from pathlib import Path
 from agent_framework import Content, Message
 from agent_framework.foundry import AnthropicFoundryClient
 from azure.identity import AzureCliCredential, get_bearer_token_provider
-from message_converter import AnthropicMessageConverter
-
 from color_print import print_blue
+from message_converter import AnthropicMessageConverter
 
 base_dir = Path(__file__).parent
 image_bytes = (base_dir / "image.png").read_bytes()

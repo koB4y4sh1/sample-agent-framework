@@ -178,3 +178,4 @@ pyrightconfig.json
 # Custom ignores for this project
 .history
 .output
+.memory

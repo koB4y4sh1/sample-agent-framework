@@ -7,29 +7,23 @@ from collections.abc import Sequence
 from typing import Any, TextIO
 
 RESET = "\033[0m"
-
-
-def _ansi_rgb(red: int, green: int, blue: int) -> str:
-    return f"\033[38;2;{red};{green};{blue}m"
-
-
 _COLOR_CODES = {
-    "black": _ansi_rgb(31, 35, 41),
-    "red": _ansi_rgb(176, 92, 110),
-    "green": _ansi_rgb(88, 142, 108),
-    "yellow": _ansi_rgb(184, 146, 71),
-    "blue": _ansi_rgb(92, 126, 176),
-    "magenta": _ansi_rgb(155, 113, 184),
-    "cyan": _ansi_rgb(83, 160, 165),
-    "white": _ansi_rgb(205, 211, 222),
-    "bright_black": _ansi_rgb(92, 99, 112),
-    "bright_red": _ansi_rgb(224, 108, 117),
-    "bright_green": _ansi_rgb(124, 203, 141),
-    "bright_yellow": _ansi_rgb(229, 192, 123),
-    "bright_blue": _ansi_rgb(122, 162, 247),
-    "bright_magenta": _ansi_rgb(199, 146, 234),
-    "bright_cyan": _ansi_rgb(125, 211, 252),
-    "bright_white": _ansi_rgb(245, 247, 250),
+    "black": "\033[30m",
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "magenta": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "bright_black": "\033[90m",
+    "bright_red": "\033[91m",
+    "bright_green": "\033[92m",
+    "bright_yellow": "\033[93m",
+    "bright_blue": "\033[94m",
+    "bright_magenta": "\033[95m",
+    "bright_cyan": "\033[96m",
+    "bright_white": "\033[97m",
 }
 _STYLE_CODES = {
     "bold": "\033[1m",

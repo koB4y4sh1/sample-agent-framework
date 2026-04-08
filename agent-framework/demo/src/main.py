@@ -7,7 +7,12 @@ from chat_cli import DemoChatCLI
 
 async def main() -> None:
     bootstrap_result = CLIBootstrap().run()
-    app = DemoApplication(config=DemoConfig(model=bootstrap_result.model))
+    app = DemoApplication(
+        config=DemoConfig(
+            provider_family=bootstrap_result.model_settings.provider_family,
+            model=bootstrap_result.model_settings.model_name,
+        )
+    )
     session = app.create_session(session_id=bootstrap_result.session_id)
     cli = DemoChatCLI(
         agent=app.agent,

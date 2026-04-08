@@ -13,6 +13,7 @@ from agent_framework._compaction import (
     TruncationStrategy,
     apply_compaction,
 )
+from utils.print import print_gray
 
 
 @dataclass(slots=True)
@@ -57,7 +58,7 @@ class DemoCompactionProvider:
         return self._tokenizer
 
     def _debug(self, message: str) -> None:
-        print(f"[compaction] {message}")
+        print_gray(f"[compaction] {message}")
 
     def create_before_strategy(self) -> TokenBudgetComposedStrategy:
         """各モデル呼び出しの前に使う compaction パイプラインを生成する。

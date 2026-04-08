@@ -53,19 +53,19 @@ class BaseRender(ABC):
         print_color(*values, color="bright_black", **kwargs)
 
     def _print_tool_call(self, *values: Any, **kwargs: Any) -> None:
-        print_color(*values, color="bright_magenta", styles=("bold",), **kwargs)
+        print_color(*values, color="bright_green", styles=("bold",), **kwargs)
 
     def _print_tool_result(self, *values: Any, **kwargs: Any) -> None:
-        print_color(*values, color="bright_green", **kwargs)
+        print_color(*values, color="green", **kwargs)
 
     def _print_mcp_call(self, *values: Any, **kwargs: Any) -> None:
-        print_color(*values, color="bright_cyan", styles=("bold",), **kwargs)
+        print_color(*values, color="bright_blue", styles=("bold",), **kwargs)
 
     def _print_mcp_result(self, *values: Any, **kwargs: Any) -> None:
         print_color(*values, color="blue", **kwargs)
 
     def _print_usage(self, *values: Any, **kwargs: Any) -> None:
-        print_color(*values, color="bright_yellow", styles=("bold",), **kwargs)
+        print_color(*values, color="bright_cyan", styles=("bold",), **kwargs)
 
 
 class AnthropicRender(BaseRender):

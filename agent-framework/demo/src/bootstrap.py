@@ -6,10 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from agent.history import MEMORY_ROOT_DIR
-from settings import load_model_settings_list
-from utils.print import _enable_windows_ansi, print_color
-
-from color_print import print_green
+from settings import ModelSettings, load_model_settings_list
+from utils.print import _enable_windows_ansi, print_color, print_green
 
 if sys.platform == "win32":
     import msvcrt
@@ -19,7 +17,7 @@ else:
 
 @dataclass(slots=True)
 class BootstrapResult:
-    model: str
+    model_settings: ModelSettings
     session_id: str | None
 
 
@@ -34,23 +32,23 @@ class CLIBootstrap:
 
     def run(self) -> BootstrapResult:
         self._ensure_interactive_terminal()
-        model = self._select_model()
+        model_settings = self._select_model()
         session_id = self._select_session_id()
-        result = BootstrapResult(model=model, session_id=session_id)
+        result = BootstrapResult(model_settings=model_settings, session_id=session_id)
         self._print_summary(result)
         return result
 
-    def _select_model(self) -> str:
+    def _select_model(self) -> ModelSettings:
         models = load_model_settings_list()
         if not models:
             raise ValueError("No model settings were found in settings/model.json.")
 
         selected_index = self._select_from_menu(
             title="Available models",
-            options=[model.model_name for model in models],
+            options=[f"{model.provider_family}: {model.model_name}" for model in models],
             prompt="Use Up/Down and Enter to select a model.",
         )
-        return models[selected_index].model_name
+        return models[selected_index]
 
     def _select_session_id(self) -> str | None:
         sessions = self._list_history_sessions()
@@ -140,7 +138,16 @@ class CLIBootstrap:
 
     def _print_summary(self, result: BootstrapResult) -> None:
         print_green("Selected settings:")
-        print_color(f"  model: {result.model}", color="bright_white", styles=["bold"])
+        print_color(
+            f"  provider_family: {result.model_settings.provider_family}",
+            color="bright_white",
+            styles=["bold"],
+        )
+        print_color(
+            f"  model: {result.model_settings.model_name}",
+            color="bright_white",
+            styles=["bold"],
+        )
         session_label = result.session_id or "(auto-generated new session)"
         print_color(f"  session_id: {session_label}", color="bright_white", styles=["bold"])
         print()
