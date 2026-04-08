@@ -11,7 +11,7 @@ from utils.print import print_color
 ProviderFamily = Literal["anthropic", "openai", "gemini"]
 
 
-class BaseStream(ABC):
+class BaseRender(ABC):
     """ストリーミング出力の差分を provider ごとに吸収する抽象基底クラス。"""
 
     def __init__(self) -> None:
@@ -68,7 +68,7 @@ class BaseStream(ABC):
         print_color(*values, color="bright_yellow", styles=("bold",), **kwargs)
 
 
-class AnthropicStream(BaseStream):
+class AnthropicRender(BaseRender):
     """Anthropic 系クライアント向けのストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -114,7 +114,7 @@ class AnthropicStream(BaseStream):
             self._print_assistant(text, end="", flush=True)
 
 
-class OpenAIStream(BaseStream):
+class OpenAIRender(BaseRender):
     """OpenAI 系クライアント向けの最小ストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -145,7 +145,7 @@ class OpenAIStream(BaseStream):
             self._print_assistant(text, end="", flush=True)
 
 
-class GeminiStream(BaseStream):
+class GeminiRender(BaseRender):
     """Gemini 系クライアント向けの最小ストリーミング描画実装。"""
 
     def render(self, contents: Sequence[Content], text: str | None = None) -> None:
@@ -176,17 +176,17 @@ class GeminiStream(BaseStream):
             self._print_assistant(text, end="", flush=True)
 
 
-class StreamResolver:
+class UIResolver:
     """provider 種別に応じた stream renderer を解決する。"""
 
     def __init__(self, provider_family: ProviderFamily) -> None:
         self._provider_family = provider_family
 
-    def resolve(self) -> BaseStream:
+    def resolve(self) -> BaseRender:
         if self._provider_family == "anthropic":
-            return AnthropicStream()
+            return AnthropicRender()
         if self._provider_family == "openai":
-            return OpenAIStream()
+            return OpenAIRender()
         if self._provider_family == "gemini":
-            return GeminiStream()
+            return GeminiRender()
         raise ValueError(f"Unsupported provider family: {self._provider_family}")

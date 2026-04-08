@@ -4,7 +4,7 @@ from typing import Any
 
 from agent_framework import Agent, Content, Message
 from settings import load_model_settings_list
-from stream_renderer import BaseStream
+from ui import BaseRender
 from utils.file import AttachmentBuffer
 from utils.print import print_color
 
@@ -19,7 +19,7 @@ class DemoChatCLI:
         agent: Agent,
         session: Any,
         code_interpreter_status: str,
-        stream_renderer: BaseStream,
+        stream_renderer: BaseRender,
     ) -> None:
         self._agent = agent
         self._session = session
