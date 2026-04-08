@@ -18,7 +18,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/agent-framework/demo/src/main.py",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
             "env": {
                 "MCP_LOG_LEVEL": "DEBUG",
                 "PYTHONPATH": "${workspaceFolder}"
