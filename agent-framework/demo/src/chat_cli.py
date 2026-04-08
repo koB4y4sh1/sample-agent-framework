@@ -3,16 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from agent_framework import Agent, Content, Message
-from settings import load_model_settings_list
 from ui import BaseRender
 from utils.file import AttachmentBuffer
 from utils.print import print_color
 
-from color_print import print_green, print_yellow
-
 
 class DemoChatCLI:
-    """Anthropic デモ用 Agent を対話的に操作する CLI ラッパー。"""
+    """Anthropic demo chat CLI."""
 
     def __init__(
         self,
@@ -27,33 +24,8 @@ class DemoChatCLI:
         self._code_interpreter_status = code_interpreter_status
         self._stream_renderer = stream_renderer
 
-    @classmethod
-    def select_model(cls) -> str:
-        models = load_model_settings_list()
-        if not models:
-            raise ValueError("No model settings were found in settings/model.json.")
-
-        print_green("Available models:")
-        for index, model in enumerate(models, start=1):
-            print_green(f"  {index}. {model.model_name}")
-
-        while True:
-            try:
-                selection = input("Select model number: ").strip()
-            except EOFError as error:
-                raise RuntimeError("Model selection requires an interactive terminal.") from error
-
-            if not selection.isdigit():
-                print_yellow("Please enter a valid number.")
-                continue
-
-            selected_index = int(selection)
-            if 1 <= selected_index <= len(models):
-                return models[selected_index - 1].model_name
-
-            print_yellow("Please choose a number from the list.")
-
     async def run(self) -> None:
+        """Run the interactive CLI loop."""
         self._print_help()
         while True:
             user_input = input("[User]: ").strip()
@@ -76,7 +48,7 @@ class DemoChatCLI:
             self._attachments.clear()
             self._print_status("[Info] Pending attachments cleared.", color="bright_black")
             return True
-        if user_input == "/code":
+        if user_input == "/skills":
             self._print_status(f"[Info] {self._code_interpreter_status}", color="bright_black")
             return True
         if user_input.startswith("/image "):
@@ -112,7 +84,7 @@ class DemoChatCLI:
         self._print_status("  /image <path>       Attach one image to the next prompt", color="bright_black")
         self._print_status("  /file <path>        Attach one file to the next prompt", color="bright_black")
         self._print_status("  /clear              Clear pending attachments", color="bright_black")
-        self._print_status("  /code               Show code interpreter status", color="bright_black")
+        self._print_status("  /skills             Show Agent skills status", color="bright_black")
         self._print_status("  exit                Quit", color="bright_black")
 
     def _print_status(self, *values: Any, color: str = "bright_black", **kwargs: Any) -> None:

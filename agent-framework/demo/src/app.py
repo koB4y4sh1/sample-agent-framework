@@ -97,5 +97,5 @@ class DemoApplication:
             compaction_provider=self.compaction_provider,
         ).create()
  
-    def create_session(self):
-        return self.agent.create_session()
+    def create_session(self, session_id: str | None = None):
+        return self.agent.create_session(session_id=session_id)
