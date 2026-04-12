@@ -5,10 +5,14 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, ClassVar
+from uuid import uuid8
  
 from agent_framework import (
+    AgentSession,
     HistoryProvider,
     Message,
+    SessionContext,
+    SupportsAgentRun,
 )
  
 MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
@@ -52,7 +56,7 @@ class LocalStore(MessageStore):
 class LocalHistoryProvider(HistoryProvider):
     """会話履歴を永続化 Provider"""
  
-    DEFAULT_SOURCE_ID: ClassVar[str] = "session_id"
+    DEFAULT_SOURCE_ID: ClassVar[str] = uuid8().hex
  
     def __init__(
         self,
@@ -60,6 +64,8 @@ class LocalHistoryProvider(HistoryProvider):
         store: MessageStore,
         source_id: str | None = None,
         max_messages: int | None = None,
+        execution_metadata_source_id: str = "execution_context",
+        execution_metadata_message_key: str = "execution",
     ) -> None:
         super().__init__(
             source_id=source_id or self.DEFAULT_SOURCE_ID,
@@ -70,6 +76,8 @@ class LocalHistoryProvider(HistoryProvider):
         )
         self._store = store
         self._max_messages = max_messages
+        self._execution_metadata_source_id = execution_metadata_source_id
+        self._execution_metadata_message_key = execution_metadata_message_key
  
     async def get_messages(
         self,
@@ -96,3 +104,40 @@ class LocalHistoryProvider(HistoryProvider):
         if self._max_messages is not None:
             combined_messages = combined_messages[-self._max_messages :]
         self._store.write_messages(session_id, combined_messages)
+
+    async def after_run(
+        self,
+        *,
+        agent: SupportsAgentRun,
+        session: AgentSession,
+        context: SessionContext,
+        state: dict[str, Any],
+    ) -> None:
+        """Store messages with execution metadata from the run context."""
+        messages_to_store: list[Message] = []
+        messages_to_store.extend(self._get_context_messages_to_store(context))
+        if self.store_inputs:
+            messages_to_store.extend(context.input_messages)
+        if self.store_outputs and context.response and context.response.messages:
+            messages_to_store.extend(context.response.messages)
+
+        if messages_to_store:
+            metadata = context.metadata.get(self._execution_metadata_source_id)
+            await self.save_messages(
+                context.session_id,
+                self._with_execution_metadata(messages_to_store, metadata),
+                state=state,
+            )
+
+    def _with_execution_metadata(
+        self,
+        messages: Sequence[Message],
+        metadata: Any,
+    ) -> list[Message]:
+        if not isinstance(metadata, dict):
+            return list(messages)
+
+        saved_messages = list(messages)
+        for message in saved_messages:
+            message.additional_properties[self._execution_metadata_message_key] = dict(metadata)
+        return saved_messages

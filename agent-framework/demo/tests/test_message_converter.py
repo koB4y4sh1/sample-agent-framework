@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from agent.contexts import MessageConversionContextProvider
+from agent.contexts import ExecutionContextProvider, MessageConversionContextProvider
 from agent.history import LocalHistoryProvider, MessageStore
 from agent.message_converter import CommonMessageConverter
-from agent_framework import AgentSession, Content, Message, SessionContext
+from agent_framework import AgentResponse, AgentSession, Content, Message, SessionContext
 
 
 class FakeStore(MessageStore):
@@ -144,6 +144,57 @@ class MessageConversionContextProviderTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertIs(context.context_messages["history"][0], raw_messages[0])
+
+
+class ExecutionMetadataTests(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_stores_execution_metadata_in_state_and_context(self) -> None:
+        context = SessionContext(session_id="session", input_messages=[])
+        state = {}
+        provider = ExecutionContextProvider(
+            model="claude-sonnet-4-6",
+            provider_family="anthropic",
+            history_source_id="history",
+        )
+
+        await provider.before_run(
+            agent=object(),  # type: ignore[arg-type]
+            session=AgentSession(session_id="session"),
+            context=context,
+            state=state,
+        )
+
+        metadata = state["metadata"]
+        self.assertEqual(metadata["model"], "claude-sonnet-4-6")
+        self.assertEqual(metadata["provider_family"], "anthropic")
+        self.assertEqual(metadata["history_source_id"], "history")
+        self.assertNotIn("working_directory", metadata)
+        self.assertNotIn("platform", metadata)
+        self.assertNotIn("session_id", metadata)
+        self.assertEqual(context.metadata["execution_context"], metadata)
+
+    async def test_history_provider_saves_execution_metadata_to_message_properties(self) -> None:
+        store = FakeStore([])
+        provider = LocalHistoryProvider(store=store)
+        context = SessionContext(
+            session_id="session",
+            input_messages=[Message("user", ["hello"])],
+        )
+        context.metadata["execution_context"] = {
+            "model": "gpt-5.4",
+            "provider_family": "openai",
+        }
+        context._response = AgentResponse(messages=[Message("assistant", ["hello"])])  # type: ignore[assignment]
+
+        await provider.after_run(
+            agent=object(),  # type: ignore[arg-type]
+            session=AgentSession(session_id="session"),
+            context=context,
+            state={},
+        )
+
+        self.assertEqual(store.messages[0].additional_properties["execution"]["model"], "gpt-5.4")
+        self.assertEqual(store.messages[0].additional_properties["execution"]["provider_family"], "openai")
+        self.assertEqual(store.messages[1].additional_properties["execution"]["model"], "gpt-5.4")
 
 
 if __name__ == "__main__":

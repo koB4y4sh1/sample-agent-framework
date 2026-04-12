@@ -76,6 +76,7 @@ class DemoApplication:
         )
         self.execution_context_provider = ExecutionContextProvider(
             model=self.config.model,
+            provider_family=self.provider_family,
             history_source_id=self.history_provider.source_id,
         )
         self.preference_policy_provider = PreferencePolicyProvider()
