@@ -1,9 +1,18 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Script/python",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
     "editor.formatOnSave": true,
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.autoImportCompletions": true,
-    "python.testing.pytestEnabled": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/agent-framework/demo/src"
+    ],
+    "python.testing.cwd": "${workspaceFolder}/agent-framework/demo/src",
+    "python.testing.unittestEnabled": true,
+    "python.testing.unittestArgs": [
+        "discover",
+        "../tests"
+    ],
+    "python.testing.pytestEnabled": false,
     "files.exclude": {
         "**/__pycache__": true,
         "**/*.pyc": true,

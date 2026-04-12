@@ -21,6 +21,7 @@ class DemoAgent:
         config: DemoAgentConfig,
         client: BaseChatClient[Any],
         history_provider,
+        message_conversion_provider,
         memory_provider,
         extra_context_providers,
         skills_provider,
@@ -30,6 +31,7 @@ class DemoAgent:
         self._config = config
         self._client = client
         self._history_provider = history_provider
+        self._message_conversion_provider = message_conversion_provider
         self._memory_provider = memory_provider
         self._extra_context_providers = extra_context_providers
         self._skills_provider = skills_provider
@@ -39,6 +41,7 @@ class DemoAgent:
     def create(self) -> Agent:
         context_providers = [
             self._history_provider,
+            self._message_conversion_provider,
             self._memory_provider,
             *self._extra_context_providers,
             self._skills_provider,

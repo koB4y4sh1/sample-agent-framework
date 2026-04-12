@@ -15,6 +15,8 @@ from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
 from utils.print import print_gray
 
+from agent.message_converter import CommonMessageConverter
+
 
 class UserProfile(BaseModel):
     summary: str | None = None
@@ -40,12 +42,14 @@ class UserProfileContextProvider(ContextProvider):
         history_source_id: str,
         source_id: str | None = None,
         refresh_interval: int = 3,
+        message_converter: CommonMessageConverter | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
         self._analyser_client = analyser_client
         self._model = model
         self._history_source_id = history_source_id
         self._refresh_interval = refresh_interval
+        self._message_converter = message_converter or CommonMessageConverter()
         self.PROFILE_ROOT_DIR.mkdir(parents=True, exist_ok=True)
 
     def _debug(self, message: str) -> None:
@@ -172,6 +176,10 @@ class UserProfileContextProvider(ContextProvider):
         )
 
     async def _extract_profile(self, messages: list[Message]) -> UserProfile | None:
+        common_messages = self._message_converter.convert_messages(messages)
+        if not common_messages:
+            return None
+
         analysis_messages = [
             Message(
                 "system",
@@ -182,7 +190,7 @@ class UserProfileContextProvider(ContextProvider):
                 "working_style, communication_preferences, recurring_topics.",
                 ],
             ),
-            *messages,
+            *common_messages,
             Message(
                 "user",
                 [

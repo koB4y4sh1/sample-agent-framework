@@ -12,7 +12,10 @@ from agent import (
     ExecutionContextProvider,
     LocalHistoryProvider,
     LocalStore,
+    MessageConversionContextProvider,
     PreferencePolicyProvider,
+    CommonMessageConverter,
+    ReasoningPolicy,
     UserProfileContextProvider,
     create_anthropic_chat_client,
     create_gemini_chat_client,
@@ -34,6 +37,7 @@ class DemoConfig:
     compaction_summary_target_count: int = 4
     compaction_summary_threshold: int = 2
     compaction_keep_last_groups: int = 20
+    reasoning_policy: ReasoningPolicy = "as_text"
 
 
 class DemoApplication:
@@ -57,10 +61,18 @@ class DemoApplication:
             store=self.store,
             max_messages=self.config.history_limit,
         )
+        self.message_converter = CommonMessageConverter(
+            reasoning_policy=self.config.reasoning_policy,
+        )
+        self.message_conversion_provider = MessageConversionContextProvider(
+            history_source_id=self.history_provider.source_id,
+            message_converter=self.message_converter,
+        )
         self.memory_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
             model=self.config.model,
             history_source_id=self.history_provider.source_id,
+            message_converter=self.message_converter,
         )
         self.execution_context_provider = ExecutionContextProvider(
             model=self.config.model,
@@ -91,6 +103,7 @@ class DemoApplication:
             ),
             client=self.chat_client,
             history_provider=self.history_provider,
+            message_conversion_provider=self.message_conversion_provider,
             memory_provider=self.memory_provider,
             extra_context_providers=[
                 self.execution_context_provider,

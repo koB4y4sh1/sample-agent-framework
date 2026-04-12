@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "uv: demo tests",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "--directory",
+                "${workspaceFolder}/agent-framework/demo/src",
+                "python",
+                "-m",
+                "unittest",
+                "discover",
+                "../tests"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        }
+    ]
+}
