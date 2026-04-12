@@ -7,7 +7,14 @@ from typing import Any
 
 from ui import ProviderFamily
 
-from .mcp import MCPServerSettings, load_mcp_server_settings
+from .mcp import (
+    LocalMCPTransport,
+    MCPApprovalMode,
+    MCPMode,
+    MCPServerSettings,
+    MCPSpecificApprovalSettings,
+    load_mcp_server_settings,
+)
 
 
 @dataclass(slots=True)
@@ -49,6 +56,10 @@ def load_model_settings(model_name: str) -> ModelSettings:
 
 __all__ = [
     "MCPServerSettings",
+    "MCPMode",
+    "LocalMCPTransport",
+    "MCPApprovalMode",
+    "MCPSpecificApprovalSettings",
     "ModelSettings",
     "load_model_settings_list",
     "load_mcp_server_settings",

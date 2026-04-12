@@ -16,7 +16,7 @@ from .providers import (
     create_token_provider,
 )
 from .skills import DemoSkills
-from .tools import DemoTools
+from .tools import ToolRegistry
 
 __all__ = [
     "UserProfile",
@@ -28,7 +28,7 @@ __all__ = [
     "DemoCompactionProvider",
     "DemoAgentConfig",
     "DemoAgent",
-    "DemoTools",
+    "ToolRegistry",
     "DemoSkills",
     "LocalStore",
     "LocalHistoryProvider",

@@ -1,6 +1,29 @@
 [
     {
+        "enabled": true,
         "name": "Microsoft_Learn_MCP",
-        "url": "https://learn.microsoft.com/api/mcp"
+        "mode": "hosted",
+        "url": "https://learn.microsoft.com/api/mcp",
+        "approval_mode": "never_require"
+    },
+    {
+        "enabled": false,
+        "name": "Local_Weather_Stdio",
+        "mode": "local",
+        "transport": "stdio",
+        "command": "uv",
+        "args": [
+            "run",
+            "python",
+            "weather.py"
+        ],
+        "cwd": "mcp_server/demo"
+    },
+    {
+        "enabled": false,
+        "name": "Local_Streamable_HTTP",
+        "mode": "local",
+        "transport": "streamable_http",
+        "url": "http://localhost:8000/mcp"
     }
 ]

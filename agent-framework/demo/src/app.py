@@ -8,7 +8,6 @@ from agent import (
     DemoCompactionConfig,
     DemoCompactionProvider,
     DemoSkills,
-    DemoTools,
     ExecutionContextProvider,
     LocalHistoryProvider,
     LocalStore,
@@ -16,6 +15,7 @@ from agent import (
     PreferencePolicyProvider,
     CommonMessageConverter,
     ReasoningPolicy,
+    ToolRegistry,
     UserProfileContextProvider,
     create_anthropic_chat_client,
     create_gemini_chat_client,
@@ -92,7 +92,7 @@ class DemoApplication:
         ).create_provider()
         self.skills = DemoSkills()
         self.skills_provider = self.skills.build_provider()
-        self.tool = DemoTools(self.chat_client)
+        self.tool = ToolRegistry(self.chat_client)
 
         self.stream_resolver = UIResolver(self.provider_family)
         self.stream_renderer = self.stream_resolver.resolve()
