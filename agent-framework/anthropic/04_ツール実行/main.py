@@ -5,9 +5,8 @@ from typing import Annotated
 from agent_framework import Agent, tool
 from agent_framework.foundry import AnthropicFoundryClient
 from azure.identity import AzureCliCredential, get_bearer_token_provider
-from dotenv import load_dotenv
-
 from color_print import print_blue, print_green, print_red, print_yellow
+from dotenv import load_dotenv
 
 load_dotenv()
 
