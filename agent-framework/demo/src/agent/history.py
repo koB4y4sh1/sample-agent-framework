@@ -14,6 +14,8 @@ from agent_framework import (
     SessionContext,
     SupportsAgentRun,
 )
+
+from .message_normalizer import MessageHistoryNormalizer
  
 MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
  
@@ -78,6 +80,7 @@ class LocalHistoryProvider(HistoryProvider):
         self._max_messages = max_messages
         self._execution_metadata_source_id = execution_metadata_source_id
         self._execution_metadata_message_key = execution_metadata_message_key
+        self._message_normalizer = MessageHistoryNormalizer()
  
     async def get_messages(
         self,
@@ -123,9 +126,10 @@ class LocalHistoryProvider(HistoryProvider):
 
         if messages_to_store:
             metadata = context.metadata.get(self._execution_metadata_source_id)
+            normalized_messages = self._message_normalizer.normalize_messages(messages_to_store)
             await self.save_messages(
                 context.session_id,
-                self._with_execution_metadata(messages_to_store, metadata),
+                self._with_execution_metadata(normalized_messages, metadata),
                 state=state,
             )
 

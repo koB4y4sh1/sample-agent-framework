@@ -4,7 +4,8 @@ from typing import Any
 
 from agent_framework import AgentSession, ContextProvider, Message, SessionContext, SupportsAgentRun
 
-from ..message_converter import CommonMessageConverter
+from ..message_converter import ProviderMessageConverter
+from ..message_normalizer import MessageHistoryNormalizer
 
 
 class MessageConversionContextProvider(ContextProvider):
@@ -15,12 +16,14 @@ class MessageConversionContextProvider(ContextProvider):
         self,
         *,
         history_source_id: str,
-        message_converter: CommonMessageConverter,
+        message_converter: ProviderMessageConverter,
+        message_normalizer: MessageHistoryNormalizer | None = None,
         source_id: str | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
         self._history_source_id = history_source_id
         self._message_converter = message_converter
+        self._message_normalizer = message_normalizer or MessageHistoryNormalizer()
         self._metadata_key = f"{self._METADATA_KEY_PREFIX}{self.source_id}:{history_source_id}"
 
     async def before_run(
@@ -36,7 +39,8 @@ class MessageConversionContextProvider(ContextProvider):
             return
 
         context.metadata[self._metadata_key] = list(messages)
-        context.context_messages[self._history_source_id] = self._message_converter.convert_messages(messages)
+        normalized_messages = self._message_normalizer.normalize_messages(messages)
+        context.context_messages[self._history_source_id] = self._message_converter.convert_messages(normalized_messages)
 
     async def after_run(
         self,

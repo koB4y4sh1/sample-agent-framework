@@ -13,7 +13,7 @@ from agent import (
     LocalStore,
     MessageConversionContextProvider,
     PreferencePolicyProvider,
-    CommonMessageConverter,
+    ProviderMessageConverter,
     ReasoningPolicy,
     ToolRegistry,
     UserProfileContextProvider,
@@ -61,7 +61,12 @@ class DemoApplication:
             store=self.store,
             max_messages=self.config.history_limit,
         )
-        self.message_converter = CommonMessageConverter(
+        self.message_converter = ProviderMessageConverter(
+            target_provider_family=self.provider_family,
+            reasoning_policy=self.config.reasoning_policy,
+        )
+        self.profile_message_converter = ProviderMessageConverter(
+            target_provider_family="anthropic",
             reasoning_policy=self.config.reasoning_policy,
         )
         self.message_conversion_provider = MessageConversionContextProvider(
@@ -72,7 +77,7 @@ class DemoApplication:
             analyser_client=self.haiku_client,
             model=self.config.model,
             history_source_id=self.history_provider.source_id,
-            message_converter=self.message_converter,
+            message_converter=self.profile_message_converter,
         )
         self.execution_context_provider = ExecutionContextProvider(
             model=self.config.model,

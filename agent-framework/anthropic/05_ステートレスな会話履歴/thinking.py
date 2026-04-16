@@ -31,9 +31,8 @@ async def run_anthropic():
             role="assistant",
             contents=[
                 Content.from_text_reasoning(
-                    id="rs_045fb12aa0dfc2ea0069170733badc8197969fd65da2ca2501",
                     text="**Formulating a short introduction**\n\nI need to introduce myself in under 8 words. First, I tried \"ChatAPI: Helpful AI offering concise answers,\" which totals 6 words. Then I revised it to \"ChatAPI: Your helpful, concise AI assistant,\" which is also 6 words. Finally, I thought of \"I'm ChatAPI: concise, insightful, helpful AI,\" which is 7 words. I could also go with \"I'm ChatAPI: your helpful, insightful AI\" for a total of 7 words.",
-                    protected_data="gAAAAABpFwc8gea3wdYML_Vmb6fRPBc5jJ708Y0ReNfxqLUQ2zFNWmbyBstUDp_0nFTsLZRmp15oScu1_BdyeqKz-h-o-xlAHPM_U4AcjVwigbUzkErTzPfXjV3i3hiC3FtoEWYr4N7RSRY9B7Z-j4PjAb1bSQP6uRIwOhSCFZ2OWt0nw0lRoT5NA-qe8yti0HmpKh4rJJHvkFOVeyhlNGMApO_1VOOUO-igBDKhmraCdDhZXc_LppOXcFhtD9Er-DIi3wslv9UAm61t6dR2yUXMQywQsqAo0Xg-8GJgtF6pVO9YUC-UgfW2uV_ofx_hzyVzrYLYQxNVYHtWMraFSKhjdQdUpcWdPirziQ1i5z2yLgzFoR5_4mllrTNQ21qnAOmZjfptBWf4heF_vmyU_aw_xjvKCzbM_w==",
+                    protected_data="EvYCClsIDBgCKkD1evAQ1VvABWxJ2i7tlcKfg0RZJmxAerIf5VN+G5CS+r8i8Tpz/QX4h3soJUyNy+NmQ/333yIHBtQHFbmuiWZ7MhFjbGF1ZGUtc29ubmV0LTQtNjgAEgz2xtMzh6xmJBCWqCUaDPU2qYnq1AS7ouWrsCIwn9FE3reGecsH//YiTJRWXv2xejQM8Q23BnbF0uBZL5kQMrX9q08YKOc3aAmEgiY+KsgBBg5ubYLf75g9UkiooGE50VWmJi2UbkTFCSmpBge3yOw25/0GgrwM0bABqPcFr9ywll5BHE+kksZOnUUxLrMjAzzEF4r17URaVE9WEY/9uC+MTd+JZGWUzQ5PSpuWId+Ogya2W6ymz6shbR+gNG1tPvI5Itjv9WJphTvLa/dkybYdNn0EELhfanZqyc1vVpga7oFcMTgnzuAPFT5/T11Pllmw4QN8FpjHZ+9vSFZhopHDGyJQiEK3K65USHoMxUF4PR8syLhOvKsYAQ==",
                 ),
                 Content.from_text(text="東京は晴れで25度、大阪は曇りで22度です。"),
             ]
@@ -134,7 +133,7 @@ async def run_foundry():
 
 
 async def main():
-    # await run_anthropic()
+    await run_anthropic()
     await run_foundry()
 
 

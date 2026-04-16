@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent_framework import AgentSession, ContextProvider, SessionContext, SupportsAgentRun
+from agent_framework import (
+    AgentSession,
+    ContextProvider,
+    SessionContext,
+    SupportsAgentRun,
+)
 
 ExecutionMetadata = dict[str, Any]
 
@@ -64,6 +69,5 @@ class ExecutionContextProvider(ContextProvider):
             "Current execution context:",
             f"model: {metadata['model']}",
             f"provider_family: {metadata['provider_family']}",
-            f"history_source_id: {metadata['history_source_id']}",
         ]
         return "\n".join(lines)

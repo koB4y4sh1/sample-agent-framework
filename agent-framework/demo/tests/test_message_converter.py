@@ -4,7 +4,8 @@ import unittest
 
 from agent.contexts import ExecutionContextProvider, MessageConversionContextProvider
 from agent.history import LocalHistoryProvider, MessageStore
-from agent.message_converter import CommonMessageConverter
+from agent.message_converter import CommonMessageConverter, ProviderMessageConverter
+from agent.message_normalizer import MessageHistoryNormalizer
 from agent_framework import AgentResponse, AgentSession, Content, Message, SessionContext
 
 
@@ -35,7 +36,7 @@ class CommonMessageConverterTests(unittest.TestCase):
             ],
         )
 
-        converted = CommonMessageConverter().convert_messages([message])
+        converted = CommonMessageConverter().convert_message(message)
 
         self.assertEqual(len(converted), 1)
         self.assertEqual(converted[0].role, "assistant")
@@ -56,11 +57,46 @@ class CommonMessageConverterTests(unittest.TestCase):
             ],
         )
 
-        converted = CommonMessageConverter(reasoning_policy="drop").convert_messages([message])
+        converted = CommonMessageConverter(reasoning_policy="drop").convert_message(message)
 
         self.assertEqual(len(converted), 1)
         self.assertEqual(converted[0].role, "assistant")
         self.assertEqual([content.type for content in converted[0].contents], ["function_call"])
+
+    def test_preserves_anthropic_reasoning_for_anthropic_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_text_reasoning(
+                    text="reasoning",
+                    protected_data="signature",
+                ),
+                Content.from_text("answer"),
+            ],
+            additional_properties={"execution": {"provider_family": "anthropic"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="anthropic").convert_messages([message])
+
+        self.assertEqual([content.type for content in converted[0].contents], ["text_reasoning", "text"])
+        self.assertEqual(converted[0].contents[0].protected_data, "signature")
+
+    def test_downgrades_anthropic_reasoning_for_openai_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_text_reasoning(
+                    text="reasoning",
+                    protected_data="signature",
+                )
+            ],
+            additional_properties={"execution": {"provider_family": "anthropic"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
+
+        self.assertEqual(converted[0].contents[0].type, "text")
+        self.assertEqual(converted[0].contents[0].text, "[reasoning]\nreasoning")
 
     def test_moves_function_result_to_tool_role(self) -> None:
         message = Message(
@@ -101,6 +137,134 @@ class CommonMessageConverterTests(unittest.TestCase):
         converted = CommonMessageConverter().convert_messages([message])
 
         self.assertEqual(converted, [])
+
+    def test_sanitizes_nested_mcp_tool_result_content_for_provider_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_mcp_server_tool_call(
+                    "mcp_call_1",
+                    "microsoft_docs_search",
+                    server_name="Microsoft_Learn_MCP",
+                    arguments={},
+                ),
+                Content.from_mcp_server_tool_result(
+                    "mcp_call_1",
+                    output=[
+                        Content.from_text(
+                            "result",
+                            additional_properties={"provider_internal": "drop"},
+                            raw_representation=object(),
+                        )
+                    ],
+                    additional_properties={"fc_id": "response_scoped"},
+                )
+            ],
+        )
+
+        converted = CommonMessageConverter().convert_messages([message])
+
+        self.assertEqual(len(converted), 1)
+        self.assertEqual(converted[0].role, "assistant")
+        tool_result = converted[0].contents[1]
+        self.assertEqual(tool_result.type, "mcp_server_tool_result")
+        self.assertEqual(tool_result.additional_properties, {})
+        self.assertEqual(tool_result.output[0]["type"], "text")
+        self.assertNotIn("additional_properties", tool_result.output[0])
+        self.assertNotIn("raw_representation", tool_result.output[0])
+
+    def test_moves_delayed_mcp_results_next_to_their_tool_calls(self) -> None:
+        messages = [
+            Message(
+                "assistant",
+                [
+                    Content.from_function_call("function_call_1", "load_skill", arguments={}),
+                    Content.from_mcp_server_tool_call(
+                        "mcp_call_1",
+                        "microsoft_docs_search",
+                        server_name="Microsoft_Learn_MCP",
+                        arguments={},
+                    ),
+                ],
+            ),
+            Message("tool", [Content.from_function_result("function_call_1", result="skill")]),
+            Message(
+                "assistant",
+                [
+                    Content.from_mcp_server_tool_result(
+                        "mcp_call_1",
+                        output=[Content.from_text("docs")],
+                    ),
+                    Content.from_text("next step"),
+                ],
+            ),
+        ]
+
+        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        converted = CommonMessageConverter().convert_messages(normalized)
+
+        self.assertEqual([message.role for message in converted], ["assistant", "tool", "assistant"])
+        self.assertEqual(
+            [content.type for content in converted[0].contents],
+            ["function_call", "mcp_server_tool_call", "mcp_server_tool_result"],
+        )
+        self.assertEqual([content.type for content in converted[1].contents], ["function_result"])
+        self.assertEqual(converted[0].contents[2].call_id, "mcp_call_1")
+        self.assertEqual(converted[1].contents[0].call_id, "function_call_1")
+        self.assertEqual(converted[2].contents[0].type, "text")
+
+    def test_drops_orphan_mcp_tool_results_for_claude_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_mcp_server_tool_result(
+                    "mcp_call_1",
+                    output=[Content.from_text("docs")],
+                ),
+                Content.from_text("next step"),
+            ],
+        )
+
+        normalized = MessageHistoryNormalizer().normalize_messages([message])
+        converted = CommonMessageConverter().convert_messages(normalized)
+
+        self.assertEqual(len(converted), 1)
+        self.assertEqual([content.type for content in converted[0].contents], ["text"])
+
+    def test_drops_unresolved_tool_calls_for_provider_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_text("before"),
+                Content.from_mcp_server_tool_call(
+                    "mcp_call_1",
+                    "microsoft_docs_fetch",
+                    server_name="Microsoft_Learn_MCP",
+                    arguments={},
+                ),
+            ],
+        )
+
+        normalized = MessageHistoryNormalizer().normalize_messages([message])
+        converted = CommonMessageConverter().convert_messages(normalized)
+
+        self.assertEqual(len(converted), 1)
+        self.assertEqual([content.type for content in converted[0].contents], ["text"])
+
+    def test_drops_unresolved_function_calls_for_provider_replay(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_text("before"),
+                Content.from_function_call("call_1", "get_weather", arguments={}),
+            ],
+        )
+
+        normalized = MessageHistoryNormalizer().normalize_messages([message])
+        converted = CommonMessageConverter().convert_messages(normalized)
+
+        self.assertEqual(len(converted), 1)
+        self.assertEqual([content.type for content in converted[0].contents], ["text"])
 
 
 class MessageConversionContextProviderTests(unittest.IsolatedAsyncioTestCase):
@@ -195,6 +359,66 @@ class ExecutionMetadataTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(store.messages[0].additional_properties["execution"]["model"], "gpt-5.4")
         self.assertEqual(store.messages[0].additional_properties["execution"]["provider_family"], "openai")
         self.assertEqual(store.messages[1].additional_properties["execution"]["model"], "gpt-5.4")
+
+    async def test_history_provider_normalizes_mcp_call_result_order_before_save(self) -> None:
+        store = FakeStore([])
+        provider = LocalHistoryProvider(store=store)
+        context = SessionContext(
+            session_id="session",
+            input_messages=[Message("user", ["search docs"])],
+        )
+        context._response = AgentResponse(
+            messages=[
+                Message(
+                    "assistant",
+                    [
+                        Content.from_mcp_server_tool_call(
+                            "mcp_call_1",
+                            "microsoft_docs_search",
+                            server_name="Microsoft_Learn_MCP",
+                            arguments={},
+                        ),
+                        Content.from_mcp_server_tool_call(
+                            "mcp_call_2",
+                            "microsoft_docs_fetch",
+                            server_name="Microsoft_Learn_MCP",
+                            arguments={},
+                        ),
+                    ],
+                ),
+                Message(
+                    "assistant",
+                    [
+                        Content.from_mcp_server_tool_result("mcp_call_2", output=[Content.from_text("fetch")]),
+                        Content.from_text("next"),
+                        Content.from_mcp_server_tool_result("mcp_call_1", output=[Content.from_text("search")]),
+                    ],
+                ),
+            ]
+        )  # type: ignore[assignment]
+
+        await provider.after_run(
+            agent=object(),  # type: ignore[arg-type]
+            session=AgentSession(session_id="session"),
+            context=context,
+            state={},
+        )
+
+        self.assertEqual([message.role for message in store.messages], ["user", "assistant"])
+        self.assertEqual(
+            [content.type for content in store.messages[1].contents],
+            [
+                "mcp_server_tool_call",
+                "mcp_server_tool_call",
+                "mcp_server_tool_result",
+                "mcp_server_tool_result",
+                "text",
+            ],
+        )
+        self.assertEqual(store.messages[1].contents[0].call_id, "mcp_call_1")
+        self.assertEqual(store.messages[1].contents[1].call_id, "mcp_call_2")
+        self.assertEqual(store.messages[1].contents[2].call_id, "mcp_call_1")
+        self.assertEqual(store.messages[1].contents[3].call_id, "mcp_call_2")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@ from .contexts import (
     UserProfileContextProvider,
 )
 from .history import LocalHistoryProvider, LocalStore, MessageStore
-from .message_converter import CommonMessageConverter, ReasoningPolicy
+from .message_converter import CommonMessageConverter, ProviderMessageConverter, ReasoningPolicy
+from .message_normalizer import MessageHistoryNormalizer
 from .providers import (
     create_anthropic_chat_client,
     create_gemini_chat_client,
@@ -34,6 +35,8 @@ __all__ = [
     "LocalHistoryProvider",
     "MessageStore",
     "CommonMessageConverter",
+    "ProviderMessageConverter",
+    "MessageHistoryNormalizer",
     "ReasoningPolicy",
     "create_anthropic_chat_client",
     "create_token_provider",
