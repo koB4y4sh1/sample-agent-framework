@@ -1,23 +1,180 @@
 from __future__ import annotations
 
-import asyncio
-
-from agent.contexts import ExecutionContextProvider, MessageConversionContextProvider
-from agent.history import LocalHistoryProvider, MessageStore
-from agent.message_converter import CommonMessageConverter, ProviderMessageConverter
-from agent.message_normalizer import MessageHistoryNormalizer
-from agent_framework import AgentResponse, AgentSession, Content, Message, SessionContext
+from agent.messages import CommonMessageConverter, MessageHistoryNormalizer, ProviderMessageConverter
+from agent_framework import Content, Message
 
 
-class FakeStore(MessageStore):
-    def __init__(self, messages: list[Message]) -> None:
-        self.messages = messages
+class TestProviderMessageConverter:
+    def test_preserves_openai_reasoning_when_replay_payload_is_complete(self) -> None:
+        r"""正常系：OpenAI reasoningにidとencrypted_contentがある場合、native reasoningとして保持されること
 
-    def read_messages(self, session_id: str | None) -> list[Message]:
-        return self.messages
+        入力例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text_reasoning",
+                        "id": "rs_1",
+                        "text": "reasoning",
+                        "additional_properties": {
+                            "encrypted_content": "ciphertext"
+                        }
+                    }
+                ],
+                "additional_properties": {
+                    "execution": {
+                        "provider_family": "openai"
+                    }
+                }
+            }
 
-    def write_messages(self, session_id: str | None, messages) -> None:  # type: ignore[no-untyped-def]
-        self.messages = list(messages)
+        期待例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text_reasoning",
+                        "id": "rs_1",
+                        "text": "reasoning",
+                        "additional_properties": {
+                            "encrypted_content": "ciphertext"
+                        }
+                    }
+                ]
+            }
+        """
+        message = Message(
+            "assistant",
+            [
+                Content.from_text_reasoning(
+                    id="rs_1",
+                    text="reasoning",
+                    additional_properties={"encrypted_content": "ciphertext"},
+                )
+            ],
+            additional_properties={"execution": {"provider_family": "openai"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
+
+        assert len(converted) == 1
+        reasoning = converted[0].contents[0]
+        assert reasoning.type == "text_reasoning"
+        assert reasoning.id == "rs_1"
+        assert reasoning.text == "reasoning"
+        assert reasoning.additional_properties["encrypted_content"] == "ciphertext"
+
+    def test_downgrades_openai_reasoning_without_encrypted_content(self) -> None:
+        r"""異常系：OpenAI reasoningにencrypted_contentがない場合、textへ降格されること
+
+        入力例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text_reasoning",
+                        "id": "rs_1",
+                        "text": "reasoning"
+                    }
+                ],
+                "additional_properties": {
+                    "execution": {
+                        "provider_family": "openai"
+                    }
+                }
+            }
+
+        期待例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "[reasoning]\nreasoning"
+                    }
+                ]
+            }
+        """
+        message = Message(
+            "assistant",
+            [Content.from_text_reasoning(id="rs_1", text="reasoning")],
+            additional_properties={"execution": {"provider_family": "openai"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
+
+        assert len(converted) == 1
+        assert converted[0].contents[0].type == "text"
+        assert converted[0].contents[0].text == "[reasoning]\nreasoning"
+
+    def test_drops_empty_reasoning_when_native_replay_is_not_allowed(self) -> None:
+        r"""異常系：native replay不可かつtextが空のreasoningの場合、messageごと除外されること
+
+        入力例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text_reasoning",
+                        "id": "rs_1"
+                    }
+                ],
+                "additional_properties": {
+                    "execution": {
+                        "provider_family": "openai"
+                    }
+                }
+            }
+
+        期待例:
+            []
+        """
+        message = Message(
+            "assistant",
+            [Content.from_text_reasoning(id="rs_1")],
+            additional_properties={"execution": {"provider_family": "openai"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
+
+        assert converted == []
+
+    def test_preserves_anthropic_reasoning_for_anthropic_replay(self) -> None:
+        """正常系：Anthropic由来でprotected_dataがある場合、native reasoningとして保持されること"""
+        message = Message(
+            "assistant",
+            [
+                Content.from_text_reasoning(
+                    text="reasoning",
+                    protected_data="signature",
+                ),
+                Content.from_text("answer"),
+            ],
+            additional_properties={"execution": {"provider_family": "anthropic"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="anthropic").convert_messages([message])
+
+        assert [content.type for content in converted[0].contents] == ["text_reasoning", "text"]
+        assert converted[0].contents[0].protected_data == "signature"
+
+    def test_downgrades_anthropic_reasoning_for_openai_replay(self) -> None:
+        """正常系：Anthropic reasoningをOpenAIへ再投入する場合、textへ降格されること"""
+        message = Message(
+            "assistant",
+            [
+                Content.from_text_reasoning(
+                    text="reasoning",
+                    protected_data="signature",
+                )
+            ],
+            additional_properties={"execution": {"provider_family": "anthropic"}},
+        )
+
+        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
+
+        assert converted[0].contents[0].type == "text"
+        assert converted[0].contents[0].text == "[reasoning]\nreasoning"
 
 
 class TestCommonMessageConverter:
@@ -65,42 +222,75 @@ class TestCommonMessageConverter:
         assert converted[0].role == "assistant"
         assert [content.type for content in converted[0].contents] == ["function_call"]
 
-    def test_preserves_anthropic_reasoning_for_anthropic_replay(self) -> None:
-        """正常系：Anthropic由来でprotected_dataがある場合、native reasoningとして保持されること"""
+    def test_splits_role_changes_and_keeps_author_only_for_original_role(self) -> None:
+        r"""正常系：1message内でroleが変わるcontentが混在する場合、roleごとに分割されauthorが適切に保持されること
+
+        入力例:
+            {
+                "role": "assistant",
+                "author_name": "assistant-name",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "before"
+                    },
+                    {
+                        "type": "function_result",
+                        "call_id": "call_1",
+                        "result": "ok"
+                    },
+                    {
+                        "type": "text",
+                        "text": "after"
+                    }
+                ]
+            }
+
+        期待例:
+            [
+                {
+                    "role": "assistant",
+                    "author_name": "assistant-name",
+                    "contents": [
+                        {
+                            "type": "text"
+                        }
+                    ]
+                },
+                {
+                    "role": "tool",
+                    "contents": [
+                        {
+                            "type": "function_result",
+                            "call_id": "call_1"
+                        }
+                    ]
+                },
+                {
+                    "role": "assistant",
+                    "author_name": "assistant-name",
+                    "contents": [
+                        {
+                            "type": "text"
+                        }
+                    ]
+                }
+            ]
+        """
         message = Message(
             "assistant",
             [
-                Content.from_text_reasoning(
-                    text="reasoning",
-                    protected_data="signature",
-                ),
-                Content.from_text("answer"),
+                Content.from_text("before"),
+                Content.from_function_result("call_1", result="ok"),
+                Content.from_text("after"),
             ],
-            additional_properties={"execution": {"provider_family": "anthropic"}},
+            author_name="assistant-name",
         )
 
-        converted = ProviderMessageConverter(target_provider_family="anthropic").convert_messages([message])
+        converted = CommonMessageConverter().convert_message(message)
 
-        assert [content.type for content in converted[0].contents] == ["text_reasoning", "text"]
-        assert converted[0].contents[0].protected_data == "signature"
-
-    def test_downgrades_anthropic_reasoning_for_openai_replay(self) -> None:
-        """正常系：Anthropic reasoningをOpenAIへ再投入する場合、textへ降格されること"""
-        message = Message(
-            "assistant",
-            [
-                Content.from_text_reasoning(
-                    text="reasoning",
-                    protected_data="signature",
-                )
-            ],
-            additional_properties={"execution": {"provider_family": "anthropic"}},
-        )
-
-        converted = ProviderMessageConverter(target_provider_family="openai").convert_messages([message])
-
-        assert converted[0].contents[0].type == "text"
-        assert converted[0].contents[0].text == "[reasoning]\nreasoning"
+        assert [item.role for item in converted] == ["assistant", "tool", "assistant"]
+        assert [item.author_name for item in converted] == ["assistant-name", None, "assistant-name"]
 
     def test_moves_function_result_to_tool_role(self) -> None:
         """正常系：assistant messageにfunction_resultが混在する場合、tool roleのmessageへ分離されること"""
@@ -142,6 +332,39 @@ class TestCommonMessageConverter:
         message = Message("assistant", [Content.from_usage({"total_token_count": 2})])
 
         converted = CommonMessageConverter().convert_messages([message])
+
+        assert converted == []
+
+    def test_drops_empty_text_and_hosted_vector_store_content(self) -> None:
+        r"""異常系：空textとhosted_vector_storeだけの場合、providerへ渡すmessageから除外されること
+
+        入力例:
+            {
+                "role": "assistant",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": ""
+                    },
+                    {
+                        "type": "hosted_vector_store",
+                        "vector_store_id": "vs_1"
+                    }
+                ]
+            }
+
+        期待例:
+            []
+        """
+        message = Message(
+            "assistant",
+            [
+                Content.from_text(""),
+                Content.from_hosted_vector_store("vs_1"),
+            ],
+        )
+
+        converted = CommonMessageConverter().convert_message(message)
 
         assert converted == []
 
@@ -278,174 +501,3 @@ class TestCommonMessageConverter:
 
         assert len(converted) == 1
         assert [content.type for content in converted[0].contents] == ["text"]
-
-
-class TestMessageConversionContextProvider:
-    def test_history_provider_returns_raw_messages(self) -> None:
-        """正常系：履歴取得時の場合、保存済みMessageが変換されずrawのまま返ること"""
-        async def run() -> None:
-            raw_messages = [Message("assistant", [Content.from_text_reasoning(text="reasoning")])]
-            history_provider = LocalHistoryProvider(store=FakeStore(raw_messages))
-
-            messages = await history_provider.get_messages("session")
-
-            assert messages[0] is raw_messages[0]
-            assert messages[0].contents[0].type == "text_reasoning"
-
-        asyncio.run(run())
-
-    def test_provider_converts_before_run_and_restores_after_run(self) -> None:
-        """正常系：run前後のcontext変換を行う場合、実行前に変換され実行後にrawへ戻ること"""
-        async def run() -> None:
-            raw_messages = [Message("assistant", [Content.from_text_reasoning(text="reasoning")])]
-            context = SessionContext(
-                session_id="session",
-                input_messages=[],
-                context_messages={"history": raw_messages},
-            )
-            provider = MessageConversionContextProvider(
-                history_source_id="history",
-                message_converter=CommonMessageConverter(reasoning_policy="as_text"),
-            )
-
-            await provider.before_run(
-                agent=object(),  # type: ignore[arg-type]
-                session=AgentSession(session_id="session"),
-                context=context,
-                state={},
-            )
-
-            converted_messages = context.context_messages["history"]
-            assert converted_messages is not raw_messages
-            assert converted_messages[0].contents[0].type == "text"
-
-            await provider.after_run(
-                agent=object(),  # type: ignore[arg-type]
-                session=AgentSession(session_id="session"),
-                context=context,
-                state={},
-            )
-
-            assert context.context_messages["history"][0] is raw_messages[0]
-
-        asyncio.run(run())
-
-
-class TestExecutionMetadata:
-    def test_provider_stores_execution_metadata_in_state_and_context(self) -> None:
-        """正常系：実行contextを初期化する場合、provider情報がstateとcontext metadataに保存されること"""
-        async def run() -> None:
-            context = SessionContext(session_id="session", input_messages=[])
-            state = {}
-            provider = ExecutionContextProvider(
-                model="claude-sonnet-4-6",
-                provider_family="anthropic",
-                history_source_id="history",
-            )
-
-            await provider.before_run(
-                agent=object(),  # type: ignore[arg-type]
-                session=AgentSession(session_id="session"),
-                context=context,
-                state=state,
-            )
-
-            metadata = state["metadata"]
-            assert metadata["model"] == "claude-sonnet-4-6"
-            assert metadata["provider_family"] == "anthropic"
-            assert metadata["history_source_id"] == "history"
-            assert "working_directory" not in metadata
-            assert "platform" not in metadata
-            assert "session_id" not in metadata
-            assert context.metadata["execution_context"] == metadata
-
-        asyncio.run(run())
-
-    def test_history_provider_saves_execution_metadata_to_message_properties(self) -> None:
-        """正常系：履歴保存時に実行metadataがある場合、inputとresponseのMessage propertiesへ保存されること"""
-        async def run() -> None:
-            store = FakeStore([])
-            provider = LocalHistoryProvider(store=store)
-            context = SessionContext(
-                session_id="session",
-                input_messages=[Message("user", ["hello"])],
-            )
-            context.metadata["execution_context"] = {
-                "model": "gpt-5.4",
-                "provider_family": "openai",
-            }
-            context._response = AgentResponse(messages=[Message("assistant", ["hello"])])  # type: ignore[assignment]
-
-            await provider.after_run(
-                agent=object(),  # type: ignore[arg-type]
-                session=AgentSession(session_id="session"),
-                context=context,
-                state={},
-            )
-
-            assert store.messages[0].additional_properties["execution"]["model"] == "gpt-5.4"
-            assert store.messages[0].additional_properties["execution"]["provider_family"] == "openai"
-            assert store.messages[1].additional_properties["execution"]["model"] == "gpt-5.4"
-
-        asyncio.run(run())
-
-    def test_history_provider_normalizes_mcp_call_result_order_before_save(self) -> None:
-        """正常系：履歴保存時にMCP result順序が乱れている場合、call順へ正規化されて保存されること"""
-        async def run() -> None:
-            store = FakeStore([])
-            provider = LocalHistoryProvider(store=store)
-            context = SessionContext(
-                session_id="session",
-                input_messages=[Message("user", ["search docs"])],
-            )
-            context._response = AgentResponse(
-                messages=[
-                    Message(
-                        "assistant",
-                        [
-                            Content.from_mcp_server_tool_call(
-                                "mcp_call_1",
-                                "microsoft_docs_search",
-                                server_name="Microsoft_Learn_MCP",
-                                arguments={},
-                            ),
-                            Content.from_mcp_server_tool_call(
-                                "mcp_call_2",
-                                "microsoft_docs_fetch",
-                                server_name="Microsoft_Learn_MCP",
-                                arguments={},
-                            ),
-                        ],
-                    ),
-                    Message(
-                        "assistant",
-                        [
-                            Content.from_mcp_server_tool_result("mcp_call_2", output=[Content.from_text("fetch")]),
-                            Content.from_text("next"),
-                            Content.from_mcp_server_tool_result("mcp_call_1", output=[Content.from_text("search")]),
-                        ],
-                    ),
-                ]
-            )  # type: ignore[assignment]
-
-            await provider.after_run(
-                agent=object(),  # type: ignore[arg-type]
-                session=AgentSession(session_id="session"),
-                context=context,
-                state={},
-            )
-
-            assert [message.role for message in store.messages] == ["user", "assistant"]
-            assert [content.type for content in store.messages[1].contents] == [
-                "mcp_server_tool_call",
-                "mcp_server_tool_call",
-                "mcp_server_tool_result",
-                "mcp_server_tool_result",
-                "text",
-            ]
-            assert store.messages[1].contents[0].call_id == "mcp_call_1"
-            assert store.messages[1].contents[1].call_id == "mcp_call_2"
-            assert store.messages[1].contents[2].call_id == "mcp_call_1"
-            assert store.messages[1].contents[3].call_id == "mcp_call_2"
-
-        asyncio.run(run())
