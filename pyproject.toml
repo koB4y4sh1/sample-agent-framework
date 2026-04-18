@@ -11,3 +11,11 @@ dependencies = [
     "ruff>=0.14.7",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["agent-framework/demo/src"]
+testpaths = ["agent-framework/demo/tests"]
