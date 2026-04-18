@@ -8,8 +8,7 @@ from .contexts import (
     UserProfileContextProvider,
 )
 from .history import LocalHistoryProvider, LocalStore, MessageStore
-from .message_converter import CommonMessageConverter, ProviderMessageConverter, ReasoningPolicy
-from .message_normalizer import MessageHistoryNormalizer
+from .messages import CommonMessageConverter, MessageHistoryNormalizer, ProviderMessageConverter, ReasoningPolicy
 from .providers import (
     create_anthropic_chat_client,
     create_gemini_chat_client,

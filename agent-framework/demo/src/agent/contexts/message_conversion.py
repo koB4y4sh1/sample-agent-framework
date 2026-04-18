@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent_framework import AgentSession, ContextProvider, Message, SessionContext, SupportsAgentRun
+from agent_framework import (
+    AgentSession,
+    ContextProvider,
+    Message,
+    SessionContext,
+    SupportsAgentRun,
+)
 
-from ..message_converter import ProviderMessageConverter
-from ..message_normalizer import MessageHistoryNormalizer
+from agent.messages import MessageHistoryNormalizer, ProviderMessageConverter
 
 
 class MessageConversionContextProvider(ContextProvider):

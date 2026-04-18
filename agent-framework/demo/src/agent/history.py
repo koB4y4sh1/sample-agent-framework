@@ -15,7 +15,7 @@ from agent_framework import (
     SupportsAgentRun,
 )
 
-from .message_normalizer import MessageHistoryNormalizer
+from .messages import MessageHistoryNormalizer
  
 MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
  

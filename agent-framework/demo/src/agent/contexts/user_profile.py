@@ -15,8 +15,7 @@ from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
 from utils.print import print_gray
 
-from agent.message_converter import ProviderMessageConverter
-from agent.message_normalizer import MessageHistoryNormalizer
+from ..messages import MessageHistoryNormalizer, ProviderMessageConverter
 
 
 class UserProfile(BaseModel):
