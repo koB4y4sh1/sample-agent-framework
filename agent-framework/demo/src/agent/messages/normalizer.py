@@ -51,13 +51,25 @@ class MessageHistoryNormalizer:
                 continue
 
             contents_with_results: list[Content] = []
-            client_result_contents: list[Content] = []
+            pending_client_result_contents: list[Content] = []
             pending_mcp_call_ids: list[str] = []
+
+            def append_current_message() -> None:
+                nonlocal contents_with_results
+                if contents_with_results:
+                    normalized.append(self._build_message(message, contents_with_results))
+                    contents_with_results = []
 
             def flush_mcp_results() -> None:
                 for call_id in pending_mcp_call_ids:
                     contents_with_results.extend(mcp_results_by_call_id.pop(call_id, []))
                 pending_mcp_call_ids.clear()
+
+            def flush_client_results() -> None:
+                nonlocal pending_client_result_contents
+                if pending_client_result_contents:
+                    normalized.append(Message(role="tool", contents=pending_client_result_contents))
+                    pending_client_result_contents = []
 
             for content in contents:
                 if content.type == "mcp_server_tool_call" and isinstance(content.call_id, str):
@@ -71,17 +83,18 @@ class MessageHistoryNormalizer:
                     client_results = client_results_by_call_id.pop(content.call_id, [])
                     if client_results:
                         contents_with_results.append(content)
-                        client_result_contents.extend(client_results)
+                        pending_client_result_contents.extend(client_results)
                     continue
 
                 flush_mcp_results()
+                if pending_client_result_contents:
+                    append_current_message()
+                    flush_client_results()
                 contents_with_results.append(content)
 
             flush_mcp_results()
-            if contents_with_results:
-                normalized.append(self._build_message(message, contents_with_results))
-            if client_result_contents:
-                normalized.append(Message(role="tool", contents=client_result_contents))
+            append_current_message()
+            flush_client_results()
 
         return self._merge_adjacent_mcp_assistant_messages(normalized)
 
