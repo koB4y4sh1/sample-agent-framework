@@ -4,7 +4,7 @@
         "name": "Microsoft_Learn_MCP",
         "mode": "hosted",
         "url": "https://learn.microsoft.com/api/mcp",
-        "approval_mode": "never_require"
+        "approval_mode": "always_require"
     },
     {
         "enabled": false,

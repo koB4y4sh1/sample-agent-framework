@@ -15,6 +15,7 @@ from agent_framework import (
     SupportsAgentRun,
 )
 
+from .contexts.message_conversion import EXECUTED_INPUT_MESSAGES_METADATA_KEY
 from .messages import MessageHistoryNormalizer
  
 MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
@@ -104,6 +105,7 @@ class LocalHistoryProvider(HistoryProvider):
         """メッセージの保存"""
         existing_messages = self._store.read_messages(session_id)
         combined_messages = [*existing_messages, *messages]
+        combined_messages = self._message_normalizer.normalize_messages(combined_messages)
         if self._max_messages is not None:
             combined_messages = combined_messages[-self._max_messages :]
         self._store.write_messages(session_id, combined_messages)
@@ -120,16 +122,15 @@ class LocalHistoryProvider(HistoryProvider):
         messages_to_store: list[Message] = []
         messages_to_store.extend(self._get_context_messages_to_store(context))
         if self.store_inputs:
-            messages_to_store.extend(context.input_messages)
+            messages_to_store.extend(self._get_input_messages_to_store(context))
         if self.store_outputs and context.response and context.response.messages:
             messages_to_store.extend(context.response.messages)
 
         if messages_to_store:
             metadata = context.metadata.get(self._execution_metadata_source_id)
-            normalized_messages = self._message_normalizer.normalize_messages(messages_to_store)
             await self.save_messages(
                 context.session_id,
-                self._with_execution_metadata(normalized_messages, metadata),
+                self._with_execution_metadata(messages_to_store, metadata),
                 state=state,
             )
 
@@ -145,3 +146,11 @@ class LocalHistoryProvider(HistoryProvider):
         for message in saved_messages:
             message.additional_properties[self._execution_metadata_message_key] = dict(metadata)
         return saved_messages
+
+    def _get_input_messages_to_store(self, context: SessionContext) -> list[Message]:
+        executed_input_messages = context.metadata.get(EXECUTED_INPUT_MESSAGES_METADATA_KEY)
+        if isinstance(executed_input_messages, list) and all(
+            isinstance(item, Message) for item in executed_input_messages
+        ):
+            return list(executed_input_messages)
+        return list(context.input_messages)

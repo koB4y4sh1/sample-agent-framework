@@ -7,7 +7,7 @@ from agent_framework import Content, Message
 
 class TestReplayPayloadSanitizer:
     def test_normalizes_tool_arguments_and_drops_response_scoped_properties(self) -> None:
-        r"""正常系：tool argumentsがdictでresponse scoped propertyがある場合、JSON化され不要propertyが除去されること
+        r"""正常系：tool argumentsをJSON文字列にし、再投入不要な内部propertyを除去すること
 
         入力例:
             {
@@ -51,7 +51,7 @@ class TestReplayPayloadSanitizer:
         assert isinstance(data["additional_properties"]["opaque"], str)
 
     def test_sanitizes_nested_content_payloads_for_tool_results(self) -> None:
-        r"""正常系：tool result payloadにnested contentがある場合、content内部の不要metadataが除去されること
+        r"""正常系：tool result内のnested contentから再投入不要なmetadataを除去すること
 
         入力例:
             {
@@ -118,7 +118,7 @@ class TestReplayPayloadSanitizer:
         ]
 
     def test_sanitizes_nested_approval_response_function_call(self) -> None:
-        r"""正常系：approval responseにnested function_callがある場合、argumentsがJSON化され不要propertyが除去されること
+        r"""正常系：approval response内のfunction_callもarguments JSON文字列化と不要property除去を行うこと
 
         入力例:
             {

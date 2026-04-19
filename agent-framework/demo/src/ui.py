@@ -5,7 +5,10 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from agent_framework import Content
-from anthropic.types.beta import BetaWebSearchToolResultBlock
+from anthropic.types.beta import (
+    BetaWebSearchToolResultBlock,
+    BetaWebSearchToolResultError,
+)
 from utils.print import print_color
 
 ProviderFamily = Literal["anthropic", "openai", "gemini"]
@@ -87,7 +90,11 @@ class AnthropicRender(BaseRender):
                 self._start_output_block(next_output_type="function_result")
                 if isinstance(content.raw_representation, BetaWebSearchToolResultBlock):
                     # web_search
-                    for result in content.raw_representation.content:
+                    web_search_result = content.raw_representation.content
+                    if isinstance(web_search_result, BetaWebSearchToolResultError):
+                        self._print_tool_result(f"[Tool Result] error code: {web_search_result.error_code}")
+                        return
+                    for result in web_search_result:
                         self._print_tool_result(f"[Tool Result] title: {result.title} url: {result.url}, page_age: {result.page_age}")
                 else:
                     self._print_tool_result(f"[Tool Result] {content.result}")

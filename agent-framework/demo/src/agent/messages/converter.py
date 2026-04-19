@@ -57,6 +57,7 @@ class ProviderMessageConverter:
         reasoning_policy: ReasoningPolicy = "as_text",
         reasoning_label: str = "[reasoning]",
     ) -> None:
+        self._target_provider_family = target_provider_family
         self._payload_sanitizer = ReplayPayloadSanitizer(
             lambda content: self._sanitize_content(content, source_provider_family=None)
         )
@@ -90,9 +91,18 @@ class ProviderMessageConverter:
         current_role: str | None = None
         current_contents: list[Content] = []
         source_provider_family = self._reasoning_sanitizer.source_provider_family(message)
+        function_call_ids = {
+            content.call_id
+            for content in message.contents
+            if content.type == "function_call" and isinstance(content.call_id, str)
+        }
 
         for content in message.contents:
-            sanitized = self._sanitize_content(content, source_provider_family=source_provider_family)
+            sanitized = self._sanitize_content(
+                content,
+                source_provider_family=source_provider_family,
+                existing_function_call_ids=function_call_ids,
+            )
             if sanitized is None:
                 continue
 
@@ -138,6 +148,7 @@ class ProviderMessageConverter:
         content: Content,
         *,
         source_provider_family: ProviderFamily | None,
+        existing_function_call_ids: set[str] | None = None,
     ) -> Content | None:
         if content.type in self._DROP_CONTENT_TYPES:
             return None
@@ -155,7 +166,29 @@ class ProviderMessageConverter:
         if data.get("type") == "text" and not data.get("text"):
             return None
 
+        if data.get("type") == "function_approval_request":
+            data = self._normalize_function_approval_request(data, existing_function_call_ids or set())
+            if not data:
+                return None
+
         return Content.from_dict(data)
+
+    def _normalize_function_approval_request(self, data: dict, existing_function_call_ids: set[str]) -> dict:
+        function_call = data.get("function_call")
+        if not isinstance(function_call, dict):
+            return data
+
+        additional_properties = function_call.get("additional_properties")
+        if isinstance(additional_properties, dict) and additional_properties.get("server_label"):
+            return data
+
+        call_id = function_call.get("call_id")
+        if isinstance(call_id, str) and call_id in existing_function_call_ids:
+            return {}
+
+        normalized = dict(function_call)
+        normalized["type"] = "function_call"
+        return normalized
 
 
 CommonMessageConverter = ProviderMessageConverter

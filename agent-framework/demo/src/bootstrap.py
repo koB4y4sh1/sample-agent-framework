@@ -19,6 +19,7 @@ else:
 class BootstrapResult:
     model_settings: ModelSettings
     session_id: str | None
+    resumed_history: bool
 
 
 @dataclass(slots=True)
@@ -33,8 +34,12 @@ class CLIBootstrap:
     def run(self) -> BootstrapResult:
         self._ensure_interactive_terminal()
         model_settings = self._select_model()
-        session_id = self._select_session_id()
-        result = BootstrapResult(model_settings=model_settings, session_id=session_id)
+        session_id, resumed_history = self._select_session_id()
+        result = BootstrapResult(
+            model_settings=model_settings,
+            session_id=session_id,
+            resumed_history=resumed_history,
+        )
         self._print_summary(result)
         return result
 
@@ -50,11 +55,11 @@ class CLIBootstrap:
         )
         return models[selected_index]
 
-    def _select_session_id(self) -> str | None:
+    def _select_session_id(self) -> tuple[str | None, bool]:
         sessions = self._list_history_sessions()
         if not sessions:
             print_green("No saved history was found. A new session will be created.")
-            return self._prompt_new_session_id()
+            return self._prompt_new_session_id(), False
 
         selected_index = self._select_from_menu(
             title="History options",
@@ -62,8 +67,8 @@ class CLIBootstrap:
             prompt="Use Up/Down and Enter to choose history handling.",
         )
         if selected_index == 0:
-            return self._prompt_new_session_id()
-        return self._select_existing_session_id(sessions)
+            return self._prompt_new_session_id(), False
+        return self._select_existing_session_id(sessions), True
 
     def _prompt_new_session_id(self) -> str | None:
         session_id = input("New session id (press Enter for auto-generated): ").strip()

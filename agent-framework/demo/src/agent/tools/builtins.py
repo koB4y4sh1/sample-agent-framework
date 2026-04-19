@@ -6,7 +6,7 @@ from typing import Annotated
 from agent_framework import tool
 
 
-@tool(approval_mode="never_require")
+@tool(approval_mode="always_require")
 def get_weather(
     location: Annotated[str, "Weather target city such as Tokyo, New York, Paris"],
 ) -> str:

@@ -22,6 +22,7 @@ from agent import (
     create_openai_chat_client,
     create_token_provider,
 )
+from chat_cli import pending_tool_approval_context
 from settings import load_model_settings
 from ui import ProviderFamily, UIResolver
 
@@ -122,6 +123,9 @@ class DemoApplication:
 
     def create_session(self, session_id: str | None = None):
         return self.agent.create_session(session_id=session_id)
+
+    def get_pending_tool_approval_context(self, session_id: str | None):
+        return pending_tool_approval_context(self.store.read_messages(session_id))
 
     def _create_chat_client(self, *, model: str, token_provider):
         if self.provider_family == "anthropic":
