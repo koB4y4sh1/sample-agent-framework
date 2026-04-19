@@ -26,6 +26,18 @@
             "justMyCode": false
         },
         {
+            "name": "Demo DevUI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent-framework/demo/src/devui.py",
+            "console": "integratedTerminal",
+            "env": {
+                "MCP_LOG_LEVEL": "DEBUG",
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
             "name": "MCP Server",
             "type": "debugpy",
             "request": "launch",
