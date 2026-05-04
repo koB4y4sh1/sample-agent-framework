@@ -3,10 +3,12 @@ import asyncio
 from app import DemoApplication, DemoConfig
 from bootstrap import CLIBootstrap
 from chat_cli import DemoChatCLI
+from observability import setup_observability
 
 
 async def main() -> None:
     bootstrap_result = CLIBootstrap().run()
+    setup_observability()
     app = DemoApplication(
         config=DemoConfig(
             provider_family=bootstrap_result.model_settings.provider_family,
