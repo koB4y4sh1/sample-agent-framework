@@ -1,28 +1,39 @@
 import asyncio
 
-from app import DemoApplication, DemoConfig
+from app import DemoSessionRuntime
 from bootstrap import CLIBootstrap
-from chat_cli import DemoChatCLI
+from chat_cli import DemoChatCLI, ModelSwitchResult
 from observability import setup_observability
 
 
 async def main() -> None:
-    bootstrap_result = CLIBootstrap().run()
     setup_observability()
-    app = DemoApplication(
-        config=DemoConfig(
-            provider_family=bootstrap_result.model_settings.provider_family,
-            model=bootstrap_result.model_settings.model_name,
-        )
+    bootstrap_result = CLIBootstrap().run()
+    runtime = DemoSessionRuntime.create(
+        model_name=bootstrap_result.model_settings.model_name,
+        session_id=bootstrap_result.session_id,
     )
-    session = app.create_session(session_id=bootstrap_result.session_id)
+
+    async def switch_model(model_name: str) -> ModelSwitchResult:
+        switched = runtime.switch_model(model_name)
+        return ModelSwitchResult(
+            agent=switched.app.agent,
+            session=switched.session,
+            stream_renderer=switched.app.stream_renderer,
+            model_name=switched.model_name,
+            provider_family=switched.provider_family,
+        )
+
     cli = DemoChatCLI(
-        agent=app.agent,
-        session=session,
-        code_interpreter_status=app.skills.describe(),
-        stream_renderer=app.stream_renderer,
+        agent=runtime.app.agent,
+        session=runtime.session,
+        model_name=runtime.model_name,
+        provider_family=runtime.provider_family,
+        code_interpreter_status=runtime.app.skills.describe(),
+        stream_renderer=runtime.app.stream_renderer,
+        model_switcher=switch_model,
         pending_tool_approval_context=(
-            await app.get_pending_tool_approval_context(bootstrap_result.session_id)
+            await runtime.app.get_pending_tool_approval_context(runtime.session_id)
             if bootstrap_result.resumed_history
             else None
         ),

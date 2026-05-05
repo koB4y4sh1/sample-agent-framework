@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from agent_framework import Agent, Content, Message
 from opentelemetry import trace
+from settings import load_model_settings_list
 from ui import BaseRender
 from utils.file import AttachmentBuffer
 from utils.print import print_color
+
+if sys.platform == "win32":
+    import msvcrt
+else:
+    msvcrt = None
 
 tracer = trace.get_tracer(__name__)
 APPROVAL_REQUEST_TYPE = "function_approval_request"
@@ -22,6 +30,15 @@ APPROVAL_PROMPT_TEXT = (
 class ToolApprovalContext:
     assistant_messages: list[Message]
     requests: list[Content]
+
+
+@dataclass(slots=True)
+class ModelSwitchResult:
+    agent: Agent
+    session: Any
+    stream_renderer: BaseRender
+    model_name: str
+    provider_family: str
 
 
 def pending_tool_approval_requests(messages: Sequence[Message]) -> list[Content]:
@@ -113,15 +130,21 @@ class DemoChatCLI:
         self,
         agent: Agent,
         session: Any,
+        model_name: str,
+        provider_family: str,
         code_interpreter_status: str,
         stream_renderer: BaseRender,
+        model_switcher: Callable[[str], Awaitable[ModelSwitchResult]],
         pending_tool_approval_context: ToolApprovalContext | None = None,
     ) -> None:
         self._agent = agent
         self._session = session
+        self._model_name = model_name
+        self._provider_family = provider_family
         self._attachments = AttachmentBuffer()
         self._code_interpreter_status = code_interpreter_status
         self._stream_renderer = stream_renderer
+        self._model_switcher = model_switcher
         self._pending_tool_approval_context = (
             pending_tool_approval_context
             or ToolApprovalContext(
@@ -141,13 +164,13 @@ class DemoChatCLI:
             if user_input.lower() in {"exit", "quit"}:
                 self._print_status("[End] Session end.", color="bright_black")
                 return
-            if self._handle_command(user_input):
+            if await self._handle_command(user_input):
                 continue
 
             message = self._build_user_message(user_input)
             await self._run_agent(message)
 
-    def _handle_command(self, user_input: str) -> bool:
+    async def _handle_command(self, user_input: str) -> bool:
         if user_input == "/help":
             self._print_help()
             return True
@@ -161,6 +184,16 @@ class DemoChatCLI:
             self._print_status(
                 f"[Info] {self._code_interpreter_status}", color="bright_black"
             )
+            return True
+        if user_input.startswith("/model"):
+            model_name = user_input.split(" ", 1)[1].strip() if " " in user_input else ""
+            if not model_name:
+                selected = self._select_model_interactively()
+                if selected is None:
+                    self._print_status("[Info] Model switch cancelled.", color="bright_black")
+                    return True
+                model_name = selected
+            await self._switch_model(model_name)
             return True
         if user_input.startswith("/image "):
             self._attachments.add_image(user_input.split(" ", 1)[1])
@@ -245,6 +278,9 @@ class DemoChatCLI:
         self._print_status("Commands:", color="green")
         self._print_status("  /help               Show this help", color="green")
         self._print_status(
+            "  /model [name]       Switch model (interactive when omitted)", color="green"
+        )
+        self._print_status(
             "  /image <path>       Attach one image to the next prompt", color="green"
         )
         self._print_status(
@@ -260,3 +296,99 @@ class DemoChatCLI:
 
     def _print_status(self, *values: Any, color: str = "green", **kwargs: Any) -> None:
         print_color(*values, color=color, **kwargs)
+
+    def _select_model_interactively(self) -> str | None:
+        models = load_model_settings_list()
+        current_index = 0
+        for idx, model in enumerate(models):
+            if model.model_name == self._model_name:
+                current_index = idx
+                break
+
+        selected = self._select_from_menu(
+            title="Available models",
+            options=[f"{model.provider_family}: {model.model_name}" for model in models],
+            prompt="Use Up/Down and Enter to switch model. Press Esc to cancel.",
+            initial_index=current_index,
+        )
+        if selected is None:
+            return None
+        return models[selected].model_name
+
+    def _select_from_menu(
+        self,
+        *,
+        title: str,
+        options: list[str],
+        prompt: str,
+        initial_index: int = 0,
+    ) -> int | None:
+        if not options:
+            raise ValueError(f"No options available for menu: {title}")
+        if msvcrt is None:
+            raise RuntimeError("Arrow-key menu is currently supported only on Windows terminals.")
+
+        selected_index = max(0, min(initial_index, len(options) - 1))
+        while True:
+            self._clear_screen()
+            self._print_status(title, color="green")
+            self._print_status(prompt, color="green")
+            for index, option in enumerate(options):
+                prefix = ">" if index == selected_index else " "
+                color = "bright_white" if index == selected_index else "bright_black"
+                self._print_status(f"  {prefix} {option}", color=color)
+
+            key = self._read_menu_key()
+            if key == "UP":
+                selected_index = (selected_index - 1) % len(options)
+                continue
+            if key == "DOWN":
+                selected_index = (selected_index + 1) % len(options)
+                continue
+            if key == "ENTER":
+                return selected_index
+            if key == "ESC":
+                return None
+
+    def _read_menu_key(self) -> str:
+        if msvcrt is None:
+            raise RuntimeError("Arrow-key menu is currently supported only on Windows terminals.")
+
+        while True:
+            key = msvcrt.getwch()
+            if key in {"\r", "\n"}:
+                return "ENTER"
+            if key == "\x1b":
+                return "ESC"
+            if key in {"\x00", "\xe0"}:
+                extended = msvcrt.getwch()
+                if extended == "H":
+                    return "UP"
+                if extended == "P":
+                    return "DOWN"
+
+    def _clear_screen(self) -> None:
+        if os.name == "nt":
+            os.system("cls")
+            return
+        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.flush()
+
+    async def _switch_model(self, model_name: str) -> None:
+        if model_name == self._model_name:
+            self._print_status(f"[Info] Already using: {model_name}", color="bright_black")
+            return
+        try:
+            result = await self._model_switcher(model_name)
+        except ValueError as error:
+            self._print_status(f"[Error] {error}", color="red")
+            return
+        self._agent = result.agent
+        self._session = result.session
+        self._stream_renderer = result.stream_renderer
+        self._model_name = result.model_name
+        self._provider_family = result.provider_family
+        self._print_status(
+            f"[Info] Switched model to {self._provider_family}: {self._model_name}",
+            color="bright_black",
+        )

@@ -138,3 +138,35 @@ class DemoApplication:
         if self.provider_family == "gemini":
             return create_gemini_chat_client(model=model, token_provider=token_provider)
         raise ValueError(f"Unsupported provider family: {self.provider_family}")
+
+
+@dataclass(slots=True)
+class DemoSessionRuntime:
+    app: DemoApplication
+    session_id: str | None
+    session: object
+    model_name: str
+    provider_family: ProviderFamily
+
+    @classmethod
+    def create(cls, *, model_name: str, session_id: str | None) -> "DemoSessionRuntime":
+        app = DemoApplication(config=DemoConfig(model=model_name))
+        session = app.create_session(session_id=session_id)
+        return cls(
+            app=app,
+            session_id=session_id,
+            session=session,
+            model_name=model_name,
+            provider_family=app.provider_family,
+        )
+
+    def switch_model(self, model_name: str) -> "DemoSessionRuntime":
+        new_runtime = DemoSessionRuntime.create(
+            model_name=model_name,
+            session_id=self.session_id,
+        )
+        self.app = new_runtime.app
+        self.session = new_runtime.session
+        self.model_name = new_runtime.model_name
+        self.provider_family = new_runtime.provider_family
+        return self
