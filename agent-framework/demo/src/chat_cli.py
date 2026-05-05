@@ -6,12 +6,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from agent_framework import Agent, Content, Message
+from opentelemetry import trace
 from ui import BaseRender
 from utils.file import AttachmentBuffer
 from utils.print import print_color
 
+tracer = trace.get_tracer(__name__)
 APPROVAL_REQUEST_TYPE = "function_approval_request"
-APPROVAL_PROMPT_TEXT = "[Approve] {tool_name} を実行してもよろしいでしょうか？{arguments} Y/N: "
+APPROVAL_PROMPT_TEXT = (
+    "[Approve] {tool_name} を実行してもよろしいでしょうか？{arguments} Y/N: "
+)
 
 
 @dataclass(slots=True)
@@ -30,14 +34,22 @@ def pending_tool_approval_context(messages: Sequence[Message]) -> ToolApprovalCo
         return ToolApprovalContext(assistant_messages=[], requests=[])
 
     last_message = messages[-1]
-    requests = [content for content in last_message.contents if content.type == APPROVAL_REQUEST_TYPE]
+    requests = [
+        content
+        for content in last_message.contents
+        if content.type == APPROVAL_REQUEST_TYPE
+    ]
     if not requests:
         return ToolApprovalContext(assistant_messages=[], requests=[])
 
-    return ToolApprovalContext(assistant_messages=[_copy_message(last_message)], requests=requests)
+    return ToolApprovalContext(
+        assistant_messages=[_copy_message(last_message)], requests=requests
+    )
 
 
-def build_tool_approval_response_message(requests: Sequence[Content], approvals: Sequence[bool]) -> Message:
+def build_tool_approval_response_message(
+    requests: Sequence[Content], approvals: Sequence[bool]
+) -> Message:
     if len(requests) != len(approvals):
         raise ValueError("requests and approvals must have the same length.")
 
@@ -86,7 +98,9 @@ def _format_arguments(arguments: Any) -> str:
         return "{}"
     if isinstance(arguments, str):
         try:
-            return json.dumps(json.loads(arguments), ensure_ascii=False, separators=(",", ":"))
+            return json.dumps(
+                json.loads(arguments), ensure_ascii=False, separators=(",", ":")
+            )
         except json.JSONDecodeError:
             return arguments
     return json.dumps(arguments, ensure_ascii=False, separators=(",", ":"), default=str)
@@ -108,9 +122,12 @@ class DemoChatCLI:
         self._attachments = AttachmentBuffer()
         self._code_interpreter_status = code_interpreter_status
         self._stream_renderer = stream_renderer
-        self._pending_tool_approval_context = pending_tool_approval_context or ToolApprovalContext(
-            assistant_messages=[],
-            requests=[],
+        self._pending_tool_approval_context = (
+            pending_tool_approval_context
+            or ToolApprovalContext(
+                assistant_messages=[],
+                requests=[],
+            )
         )
 
     async def run(self) -> None:
@@ -136,10 +153,14 @@ class DemoChatCLI:
             return True
         if user_input == "/clear":
             self._attachments.clear()
-            self._print_status("[Info] Pending attachments cleared.", color="bright_black")
+            self._print_status(
+                "[Info] Pending attachments cleared.", color="bright_black"
+            )
             return True
         if user_input == "/skills":
-            self._print_status(f"[Info] {self._code_interpreter_status}", color="bright_black")
+            self._print_status(
+                f"[Info] {self._code_interpreter_status}", color="bright_black"
+            )
             return True
         if user_input.startswith("/image "):
             self._attachments.add_image(user_input.split(" ", 1)[1])
@@ -163,13 +184,16 @@ class DemoChatCLI:
 
     async def _run_agent(self, message: Message | Sequence[Message]) -> None:
         current_input: Message | Sequence[Message] = message
-        while True:
-            approval_context = await self._stream_agent_run(current_input)
-            if not approval_context.requests:
-                return
-            current_input = self._build_tool_approval_messages(approval_context)
+        with tracer.start_as_current_span("chat_request"):
+            while True:
+                approval_context = await self._stream_agent_run(current_input)
+                if not approval_context.requests:
+                    return
+                current_input = self._build_tool_approval_messages(approval_context)
 
-    async def _stream_agent_run(self, message: Message | Sequence[Message]) -> ToolApprovalContext:
+    async def _stream_agent_run(
+        self, message: Message | Sequence[Message]
+    ) -> ToolApprovalContext:
         self._stream_renderer.start()
         stream = self._agent.run(message, session=self._session, stream=True)
         async for chunk in stream:
@@ -183,17 +207,32 @@ class DemoChatCLI:
         if not self._pending_tool_approval_context.requests:
             return
 
-        approval_messages = self._build_tool_approval_messages(self._pending_tool_approval_context)
-        self._pending_tool_approval_context = ToolApprovalContext(assistant_messages=[], requests=[])
+        approval_messages = self._build_tool_approval_messages(
+            self._pending_tool_approval_context
+        )
+        self._pending_tool_approval_context = ToolApprovalContext(
+            assistant_messages=[], requests=[]
+        )
         await self._run_agent(approval_messages)
 
-    def _build_tool_approval_messages(self, approval_context: ToolApprovalContext) -> Message:
-        approvals = [self._read_tool_approval(request) for request in approval_context.requests]
-        return build_tool_approval_response_message(approval_context.requests, approvals)
+    def _build_tool_approval_messages(
+        self, approval_context: ToolApprovalContext
+    ) -> Message:
+        approvals = [
+            self._read_tool_approval(request) for request in approval_context.requests
+        ]
+        return build_tool_approval_response_message(
+            approval_context.requests, approvals
+        )
 
     def _read_tool_approval(self, request: Content) -> bool:
         while True:
-            print_color(format_tool_approval_prompt(request), color="bright_yellow", end="", flush=True)
+            print_color(
+                format_tool_approval_prompt(request),
+                color="bright_yellow",
+                end="",
+                flush=True,
+            )
             answer = input().strip().lower()
             if answer in {"y", "yes"}:
                 return True
@@ -205,10 +244,18 @@ class DemoChatCLI:
         self._print_status("[Start] Anthropic demo chat", color="green")
         self._print_status("Commands:", color="green")
         self._print_status("  /help               Show this help", color="green")
-        self._print_status("  /image <path>       Attach one image to the next prompt", color="green")
-        self._print_status("  /file <path>        Attach one file to the next prompt", color="green")
-        self._print_status("  /clear              Clear pending attachments", color="green")
-        self._print_status("  /skills             Show Agent skills status", color="green")
+        self._print_status(
+            "  /image <path>       Attach one image to the next prompt", color="green"
+        )
+        self._print_status(
+            "  /file <path>        Attach one file to the next prompt", color="green"
+        )
+        self._print_status(
+            "  /clear              Clear pending attachments", color="green"
+        )
+        self._print_status(
+            "  /skills             Show Agent skills status", color="green"
+        )
         self._print_status("  exit                Quit", color="green")
 
     def _print_status(self, *values: Any, color: str = "green", **kwargs: Any) -> None:
