@@ -2453,6 +2453,21 @@ wheels = [
 ]
 
 [[package]]
+name = "opentelemetry-instrumentation-anthropic"
+version = "0.60.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "opentelemetry-semantic-conventions-ai" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/b2/51cb448d50f81f024060b95e3f59d447ae5543bb17134ef7adc5fedbf12b/opentelemetry_instrumentation_anthropic-0.60.0.tar.gz", hash = "sha256:728b425374775d694463d8a2e99e116678a544dc9f721edad6f275f80911592c", size = 698336, upload-time = "2026-04-19T12:42:32.001Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/af/0fcc8cf246888404ea31da14f3115d418d7f52b140361bfa2da983b96e96/opentelemetry_instrumentation_anthropic-0.60.0-py3-none-any.whl", hash = "sha256:04a366e235c32b185b676b3b5ce2a995d4d508e473c6b6881aeb24369290bb80", size = 19264, upload-time = "2026-04-19T12:41:52.997Z" },
+]
+
+[[package]]
 name = "opentelemetry-instrumentation-asgi"
 version = "0.61b0"
 source = { registry = "https://pypi.org/simple" }
@@ -3527,6 +3542,8 @@ dependencies = [
     { name = "debugpy" },
     { name = "fastmcp" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
+    { name = "opentelemetry-instrumentation-anthropic" },
+    { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-instrumentation-mcp" },
     { name = "ruff" },
@@ -3545,6 +3562,8 @@ requires-dist = [
     { name = "debugpy", specifier = ">=1.8.19" },
     { name = "fastmcp", specifier = ">=2.14.2" },
     { name = "opentelemetry-instrumentation-aiohttp-client", specifier = ">=0.61b0" },
+    { name = "opentelemetry-instrumentation-anthropic", specifier = ">=0.60.0" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.61b0" },
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.61b0" },
     { name = "opentelemetry-instrumentation-mcp", specifier = ">=0.60.0" },
     { name = "ruff", specifier = ">=0.14.7" },

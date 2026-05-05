@@ -2,6 +2,7 @@ from agent_framework.observability import create_resource, enable_instrumentatio
 from azure.identity import AzureCliCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.mcp import McpInstrumentor
 
@@ -24,4 +25,10 @@ def setup_observability() -> None:
     HTTPXClientInstrumentor().instrument()  # httpx
     AioHttpClientInstrumentor().instrument()  # aiohttp
     McpInstrumentor().instrument()  # MCP
+    AnthropicInstrumentor().instrument()  # Anthropic
     enable_instrumentation(enable_sensitive_data=False)  # Agent Framework
+
+    # NOTE: OpenAI Instrumentation
+    # Agent Framework の Responses API streaming 実行と競合するため使用しない。
+    # stream=True の戻り値は AsyncStreamWrapper だが、instrumentation 側が通常レスポンスとして .id を参照し、AttributeError になるケースがある。
+    # Agent Framework 側の enable_instrumentation() に寄せて計測する。
