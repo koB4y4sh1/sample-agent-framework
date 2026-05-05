@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 import httpx
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Initialize FastMCP server
 mcp = FastMCP("chillax-mcp-server")

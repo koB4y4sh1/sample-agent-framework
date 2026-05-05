@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Initialize FastMCP server
 mcp = FastMCP("documenter")

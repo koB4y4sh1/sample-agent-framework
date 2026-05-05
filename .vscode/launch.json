@@ -26,6 +26,21 @@
             "justMyCode": false
         },
         {
+            "name": "Demo MCP",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/fastmcp/demo/server.py",
+            "cwd": "${workspaceFolder}/fastmcp/demo",
+            "console": "integratedTerminal",
+            "env": {
+                "MCP_LOG_LEVEL": "DEBUG",
+                "PYTHONPATH": "${workspaceFolder}/fastmcp/demo",
+                "HOST": "127.0.0.1",
+                "PORT": "8100"
+            },
+            "justMyCode": true
+        },
+        {
             "name": "Demo DevUI",
             "type": "debugpy",
             "request": "launch",
@@ -37,17 +52,5 @@
             },
             "justMyCode": false
         },
-        {
-            "name": "MCP Server",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "src.server",
-            "console": "integratedTerminal",
-            "env": {
-                "MCP_LOG_LEVEL": "DEBUG",
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "justMyCode": false
-        }
     ]
 }
