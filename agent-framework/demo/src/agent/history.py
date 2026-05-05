@@ -1,12 +1,9 @@
 from __future__ import annotations
- 
-import json
-from abc import ABC, abstractmethod
+
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any, ClassVar
 from uuid import uuid8
- 
+
 from agent_framework import (
     AgentSession,
     HistoryProvider,
@@ -17,50 +14,14 @@ from agent_framework import (
 
 from .contexts.message_conversion import EXECUTED_INPUT_MESSAGES_METADATA_KEY
 from .messages import MessageHistoryNormalizer
- 
-MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
- 
- 
-class MessageStore(ABC):
-    """永続化されたメッセージを読み書きするための抽象ストレージ。"""
- 
-    @abstractmethod
-    def read_messages(self,  session_id: str | None) -> list[Message]:
-        """保存済みメッセージを読み込む。"""
- 
-    @abstractmethod
-    def write_messages(self, session_id: str | None, messages: Sequence[Message]) -> None:
-        """メッセージを書き込む。"""
- 
- 
-class LocalStore(MessageStore):
-    """ローカルのデモ用ディレクトリ配下に JSON としてメッセージを保存する。"""
- 
-    def __init__(self) -> None:
-        MEMORY_ROOT_DIR.mkdir(parents=True, exist_ok=True)
- 
-    def read_messages(self,  session_id: str | None) -> list[Message]:
-        path = self._get_path(session_id)
-        if not path.exists():
-            return []
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return [Message.from_dict(item) for item in data]
- 
-    def write_messages(self, session_id: str | None, messages: Sequence[Message]) -> None:
-        path = self._get_path( session_id)
-        serialized = [message.to_dict() for message in messages]
-        path.write_text(json.dumps(serialized, ensure_ascii=False, indent=2), encoding="utf-8")
- 
-    def _get_path(self, session_id: str | None) -> Path:
-        safe_session_id = (session_id or "default").replace("/", "_").replace("\\", "_")
-        return MEMORY_ROOT_DIR / f"{safe_session_id}.json"
- 
- 
+from .store.base import MessageStore
+
+
 class LocalHistoryProvider(HistoryProvider):
     """会話履歴を永続化 Provider"""
- 
+
     DEFAULT_SOURCE_ID: ClassVar[str] = uuid8().hex
- 
+
     def __init__(
         self,
         *,
@@ -82,7 +43,7 @@ class LocalHistoryProvider(HistoryProvider):
         self._execution_metadata_source_id = execution_metadata_source_id
         self._execution_metadata_message_key = execution_metadata_message_key
         self._message_normalizer = MessageHistoryNormalizer()
- 
+
     async def get_messages(
         self,
         session_id: str | None,
@@ -91,9 +52,9 @@ class LocalHistoryProvider(HistoryProvider):
         **kwargs: Any,
     ) -> list[Message]:
         """保存済みメッセージの取得"""
-        stored_messages = self._store.read_messages(session_id)
+        stored_messages = await self._store.read_messages(session_id)
         return stored_messages
- 
+
     async def save_messages(
         self,
         session_id: str | None,
@@ -103,12 +64,14 @@ class LocalHistoryProvider(HistoryProvider):
         **kwargs: Any,
     ) -> None:
         """メッセージの保存"""
-        existing_messages = self._store.read_messages(session_id)
+        existing_messages = await self._store.read_messages(session_id)
         combined_messages = [*existing_messages, *messages]
-        combined_messages = self._message_normalizer.normalize_messages(combined_messages)
+        combined_messages = self._message_normalizer.normalize_messages(
+            combined_messages
+        )
         if self._max_messages is not None:
             combined_messages = combined_messages[-self._max_messages :]
-        self._store.write_messages(session_id, combined_messages)
+        await self._store.write_messages(session_id, combined_messages)
 
     async def after_run(
         self,
@@ -144,11 +107,15 @@ class LocalHistoryProvider(HistoryProvider):
 
         saved_messages = list(messages)
         for message in saved_messages:
-            message.additional_properties[self._execution_metadata_message_key] = dict(metadata)
+            message.additional_properties[self._execution_metadata_message_key] = dict(
+                metadata
+            )
         return saved_messages
 
     def _get_input_messages_to_store(self, context: SessionContext) -> list[Message]:
-        executed_input_messages = context.metadata.get(EXECUTED_INPUT_MESSAGES_METADATA_KEY)
+        executed_input_messages = context.metadata.get(
+            EXECUTED_INPUT_MESSAGES_METADATA_KEY
+        )
         if isinstance(executed_input_messages, list) and all(
             isinstance(item, Message) for item in executed_input_messages
         ):

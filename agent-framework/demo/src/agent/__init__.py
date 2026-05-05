@@ -7,8 +7,13 @@ from .contexts import (
     UserProfile,
     UserProfileContextProvider,
 )
-from .history import LocalHistoryProvider, LocalStore, MessageStore
-from .messages import CommonMessageConverter, MessageHistoryNormalizer, ProviderMessageConverter, ReasoningPolicy
+from .history import LocalHistoryProvider
+from .messages import (
+    CommonMessageConverter,
+    MessageHistoryNormalizer,
+    ProviderMessageConverter,
+    ReasoningPolicy,
+)
 from .providers import (
     create_anthropic_chat_client,
     create_gemini_chat_client,
@@ -16,6 +21,7 @@ from .providers import (
     create_token_provider,
 )
 from .skills import DemoSkills
+from .store import CosmosStore, LocalStore, MessageStore
 from .tools import ToolRegistry
 
 __all__ = [
@@ -31,6 +37,7 @@ __all__ = [
     "ToolRegistry",
     "DemoSkills",
     "LocalStore",
+    "CosmosStore",
     "LocalHistoryProvider",
     "MessageStore",
     "CommonMessageConverter",

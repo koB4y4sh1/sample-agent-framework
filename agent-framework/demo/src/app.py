@@ -124,12 +124,15 @@ class DemoApplication:
     def create_session(self, session_id: str | None = None):
         return self.agent.create_session(session_id=session_id)
 
-    def get_pending_tool_approval_context(self, session_id: str | None):
-        return pending_tool_approval_context(self.store.read_messages(session_id))
+    async def get_pending_tool_approval_context(self, session_id: str | None):
+        messages = await self.store.read_messages(session_id)
+        return pending_tool_approval_context(messages)
 
     def _create_chat_client(self, *, model: str, token_provider):
         if self.provider_family == "anthropic":
-            return create_anthropic_chat_client(model=model, token_provider=token_provider)
+            return create_anthropic_chat_client(
+                model=model, token_provider=token_provider
+            )
         if self.provider_family == "openai":
             return create_openai_chat_client(model=model)
         if self.provider_family == "gemini":

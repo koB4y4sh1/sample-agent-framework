@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
-from agent.history import MEMORY_ROOT_DIR
+from agent.store.local import MEMORY_ROOT_DIR
 from settings import ModelSettings, load_model_settings_list
 from utils.print import _enable_windows_ansi, print_color, print_green
 
@@ -50,7 +50,9 @@ class CLIBootstrap:
 
         selected_index = self._select_from_menu(
             title="Available models",
-            options=[f"{model.provider_family}: {model.model_name}" for model in models],
+            options=[
+                f"{model.provider_family}: {model.model_name}" for model in models
+            ],
             prompt="Use Up/Down and Enter to select a model.",
         )
         return models[selected_index]
@@ -119,7 +121,9 @@ class CLIBootstrap:
 
     def _read_key(self) -> str:
         if msvcrt is None:
-            raise RuntimeError("Arrow-key menu is currently supported only on Windows terminals.")
+            raise RuntimeError(
+                "Arrow-key menu is currently supported only on Windows terminals."
+            )
 
         while True:
             key = msvcrt.getwch()
@@ -154,7 +158,9 @@ class CLIBootstrap:
             styles=["bold"],
         )
         session_label = result.session_id or "(auto-generated new session)"
-        print_color(f"  session_id: {session_label}", color="bright_white", styles=["bold"])
+        print_color(
+            f"  session_id: {session_label}", color="bright_white", styles=["bold"]
+        )
         print()
 
     def _ensure_interactive_terminal(self) -> None:

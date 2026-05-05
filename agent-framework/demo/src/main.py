@@ -22,7 +22,7 @@ async def main() -> None:
         code_interpreter_status=app.skills.describe(),
         stream_renderer=app.stream_renderer,
         pending_tool_approval_context=(
-            app.get_pending_tool_approval_context(bootstrap_result.session_id)
+            await app.get_pending_tool_approval_context(bootstrap_result.session_id)
             if bootstrap_result.resumed_history
             else None
         ),
