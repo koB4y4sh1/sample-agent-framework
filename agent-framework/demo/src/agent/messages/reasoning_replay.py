@@ -47,7 +47,7 @@ class ReasoningReplaySanitizer:
         if not isinstance(execution, Mapping):
             return None
         provider_family = execution.get("provider_family")
-        if provider_family in {"anthropic", "openai", "gemini"}:
+        if provider_family in {"anthropic", "openai", "google"}:
             return provider_family
         return None
 
@@ -63,7 +63,7 @@ class ReasoningReplaySanitizer:
         - 必要な情報が揃っている場合にのみ
             - Anthropic: protected_data
             - OpenAI: reasoning_id と encrypted_content
-            - Gemini: reasoning block は常に replay 可（ただし Gemini 以外の provider では replay 不可）
+            - Google: reasoning block は常に replay 可（ただし Google 以外の provider では replay 不可）
         """
         target_provider_family = self._target_provider_family
         if target_provider_family is None:
@@ -76,7 +76,7 @@ class ReasoningReplaySanitizer:
             return bool(content.protected_data)
         if target_provider_family == "openai":
             return bool(content.id and content.additional_properties.get("encrypted_content"))
-        if target_provider_family == "gemini":
+        if target_provider_family == "google":
             return True
         return False
 

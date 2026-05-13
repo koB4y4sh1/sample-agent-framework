@@ -135,7 +135,7 @@ class DemoApplication:
             )
         if self.provider_family == "openai":
             return create_openai_chat_client(model=model)
-        if self.provider_family == "gemini":
+        if self.provider_family == "google":
             return create_gemini_chat_client(model=model, token_provider=token_provider)
         raise ValueError(f"Unsupported provider family: {self.provider_family}")
 

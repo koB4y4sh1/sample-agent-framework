@@ -11,7 +11,7 @@ from anthropic.types.beta import (
 )
 from utils.print import print_color
 
-ProviderFamily = Literal["anthropic", "openai", "gemini"]
+ProviderFamily = Literal["anthropic", "openai", "google"]
 
 
 class BaseRender(ABC):
@@ -194,6 +194,6 @@ class UIResolver:
             return AnthropicRender()
         if self._provider_family == "openai":
             return OpenAIRender()
-        if self._provider_family == "gemini":
+        if self._provider_family == "google":
             return GeminiRender()
         raise ValueError(f"Unsupported provider family: {self._provider_family}")

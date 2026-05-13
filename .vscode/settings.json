@@ -23,5 +23,16 @@
         "editor.codeActionsOnSave": {
             "source.organizeImports": "always"
         }
+    },
+    "cursorpyright.analysis.autoImportCompletions": true,
+    "cursorpyright.analysis.extraPaths": [
+        "${workspaceFolder}/agent-framework/demo/src"
+    ],
+    "cursorpyright.analysis.typeCheckingMode": "basic",
+    "mcpServers": {
+        "Demo MCP": {
+            "type": "streamable_http",
+            "url": "http://127.0.0.1:8100/mcp"
+        }
     }
 }

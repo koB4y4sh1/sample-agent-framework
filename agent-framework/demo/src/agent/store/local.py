@@ -8,7 +8,7 @@ from agent_framework import Message
 
 from .base import MessageStore
 
-MEMORY_ROOT_DIR = Path(__file__).parent.parent.parent / ".history"
+MEMORY_ROOT_DIR = Path(__file__).parents[3] / ".history"  # demo/.history
 
 
 class LocalStore(MessageStore):
