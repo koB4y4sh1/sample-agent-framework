@@ -14,7 +14,7 @@ class DemoSkills:
 
     def build_provider(self) -> SkillsProvider:
         """demo 用の SkillsProvider を構築して返す。"""
-        return SkillsProvider(
+        return SkillsProvider.from_paths(
             skill_paths=self._skill_root,
             source_id="demo_skills",
         )
