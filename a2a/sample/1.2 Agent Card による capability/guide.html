@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1.2 Agent Card による capability - 図解ガイド</title>
+    <style>
+        :root {
+            --bg: #f6f3ec;
+            --panel: #fffaf2;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --accent: #b45309;
+            --accent2: #0f766e;
+            --border: #e7dcc7;
+            --shadow: 0 14px 40px rgba(31, 41, 55, .10);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top left, rgba(180, 83, 9, .10), transparent 28%), radial-gradient(circle at top right, rgba(15, 118, 110, .12), transparent 24%), linear-gradient(180deg, #fffdf8 0%, var(--bg) 100%);
+            line-height: 1.75
+        }
+
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 20px 60px
+        }
+
+        .hero,
+        .section {
+            background: rgba(255, 250, 242, .92);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            box-shadow: var(--shadow)
+        }
+
+        .hero {
+            padding: 32px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -60px auto;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(180, 83, 9, .16), transparent 70%);
+            border-radius: 50%
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(180, 83, 9, .10);
+            color: var(--accent);
+            font-size: .92rem;
+            font-weight: 700
+        }
+
+        .lead {
+            margin: 0;
+            max-width: 74ch;
+            color: var(--muted)
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(2rem, 4vw, 3.1rem);
+            line-height: 1.15
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 22px
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, .8);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px
+        }
+
+        .meta-card .label {
+            display: block;
+            font-size: .85rem;
+            color: var(--muted);
+            margin-bottom: 4px
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 24px
+        }
+
+        .two-col {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))
+        }
+
+        .section {
+            padding: 24px
+        }
+
+        .section h2 {
+            margin: 0 0 12px;
+            font-size: 1.32rem
+        }
+
+        .section h3 {
+            margin: 18px 0 10px;
+            font-size: 1.04rem;
+            color: var(--accent2)
+        }
+
+        .section p {
+            margin: 0 0 12px
+        }
+
+        .list {
+            margin: 10px 0 0 1.2em
+        }
+
+        .card-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px
+        }
+
+        .card {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #f2ede2;
+            border: 1px solid var(--border)
+        }
+
+        .card strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node {
+            background: linear-gradient(180deg, #fff 0%, #fff7ea 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 8px 18px rgba(31, 41, 55, .06)
+        }
+
+        .node strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node small {
+            color: var(--muted);
+            display: block
+        }
+
+        .arrow {
+            display: flex;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.3rem;
+            line-height: 1;
+            margin: -2px 0
+        }
+
+        .code {
+            font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+            font-size: .95rem;
+            background: #1f2937;
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin-top: 12px;
+            white-space: pre-wrap
+        }
+
+        .callout {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-left: 5px solid var(--accent);
+            background: #fff6e7;
+            border-radius: 14px
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: .95rem;
+            text-align: center
+        }
+
+        @media (max-width:720px) {
+
+            .hero,
+            .section {
+                padding: 20px
+            }
+
+            .wrap {
+                padding: 16px 12px 40px
+            }
+
+            h1 {
+                font-size: 1.9rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header class="hero">
+            <div class="eyebrow">A2A サンプル 1.2 Agent Card による capability</div>
+            <h1>Agent Card で「何ができるか」を先に伝える</h1>
+            <p class="lead">このサンプルは、サーバーが Agent Card に capability
+                を載せて公開し、クライアントがその内容を読んで接続できることを示します。まず名刺を見てから話し始める、という流れを学ぶページです。</p>
+            <div class="meta">
+                <div class="meta-card"><span class="label">学ぶこと</span><strong>capability / skill / interface</strong>
+                </div>
+                <div class="meta-card"><span class="label">主な登場ファイル</span><strong>agent.py / client.py</strong></div>
+                <div class="meta-card"><span class="label">ポイント</span><strong>カードを見て接続先を判断</strong></div>
+            </div>
+        </header>
+
+        <section class="grid two-col">
+            <div class="section">
+                <h2>1. 何をしているサンプルか</h2>
+                <p>このサンプルでは、サーバーが自分の機能を Agent Card に書き込みます。クライアントはまずそれを取得して、どのプロトコルで接続するか、どんなスキルがあるかを確認します。</p>
+                <div class="card-list">
+                    <div class="card"><strong>agent.py</strong><span>Agent Card を作成し、capabilities や interfaces
+                            を公開します。</span></div>
+                    <div class="card"><strong>client.py</strong><span>Agent Card を取得して、内容を表示します。</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <h2>2. 用語のイメージ</h2>
+                <div class="card-list">
+                    <div class="card"><strong>capabilities</strong><span>ストリーミングやプッシュ通知など、できることの一覧です。</span></div>
+                    <div class="card"><strong>skills</strong><span>エージェントが得意なタスクや会話テーマです。</span></div>
+                    <div class="card"><strong>supported_interfaces</strong><span>GRPC / JSONRPC / HTTP+JSON
+                            などの接続方法です。</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="margin-top:18px;">
+            <h2>3. 全体の流れ</h2>
+            <div class="node"><strong>1. サーバー起動</strong><small>Agent Card を用意して公開します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>2. クライアントが Agent Card を取得</strong><small>どの機能があるかを確認します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>3. 接続方法を決める</strong><small>対応する transport を選びます。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>4. カード内容を表示</strong><small>名前・説明・skill・interface を画面に出します。</small></div>
+            <div class="callout"><strong>ポイント</strong>
+                <div>この段階ではメッセージ送信はまだしていません。まず「話せる相手か」を判断するのが Agent Card の役割です。</div>
+            </div>
+        </section>
+
+        <section class="grid two-col" style="margin-top:18px;">
+            <div class="section">
+                <h2>4. サーバー側で見ているもの</h2>
+                <p>サーバーは Agent Card に、自分の名前、説明、サポートするプロトコル、例としての skill を入れます。これでクライアントは利用前に機能を把握できます。</p>
+                <div class="code">AgentCard(
+                    name="Sample Agent",
+                    capabilities=AgentCapabilities(streaming=True),
+                    skills=[AgentSkill(...)]
+                    )</div>
+            </div>
+            <div class="section">
+                <h2>5. クライアント側での見方</h2>
+                <p>クライアントは A2ACardResolver でカードを取得し、display_agent_card で中身を確認します。接続先選択の前に、どんな相手かが分かるのが大事です。</p>
+                <div class="code">resolver = A2ACardResolver(httpx_client, args.url)
+                    card = await resolver.get_agent_card()
+                    display_agent_card(card)</div>
+            </div>
+        </section>
+
+        <div class="footer">Agent Card は、A2A の「自己紹介カード」です。ここを読めると、後続のタスク送信がかなり分かりやすくなります。</div>
+    </div>
+</body>
+
+</html>

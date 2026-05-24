@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A2A サンプル一覧</title>
+    <style>
+        :root {
+            --bg: #f6f3ec;
+            --panel: #fffaf2;
+            --panel-2: #f2ede2;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --accent: #b45309;
+            --accent-2: #0f766e;
+            --border: #e7dcc7;
+            --shadow: 0 14px 40px rgba(31, 41, 55, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(180, 83, 9, 0.10), transparent 28%),
+                radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 24%),
+                linear-gradient(180deg, #fffdf8 0%, var(--bg) 100%);
+            line-height: 1.75;
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #fff8eb 0%, #fffdf8 55%, #ecf7f5 100%);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -60px auto;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(180, 83, 9, 0.16), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(180, 83, 9, 0.10);
+            color: var(--accent);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            line-height: 1.15;
+        }
+
+        .lead {
+            margin: 0;
+            max-width: 76ch;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .meta-card .label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 24px;
+        }
+
+        .overview {
+            display: grid;
+            grid-template-columns: minmax(320px, 1.1fr) minmax(280px, 0.9fr);
+            gap: 18px;
+            margin-top: 24px;
+        }
+
+        .overview-panel {
+            background: rgba(255, 250, 242, 0.92);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .overview-panel h2 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        .overview-panel p {
+            margin: 0 0 12px;
+            color: var(--text);
+        }
+
+        .comm-flow {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .comm-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .comm-box {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #fff7ea 100%);
+            border: 1px solid var(--border);
+        }
+
+        .comm-box.client {
+            background: linear-gradient(180deg, #fffdf8 0%, #fff5e8 100%);
+        }
+
+        .comm-box.agent {
+            background: linear-gradient(180deg, #ffffff 0%, #eefaf7 100%);
+        }
+
+        .comm-box strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .comm-box small {
+            display: block;
+            color: var(--muted);
+        }
+
+        .comm-mid {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--accent);
+            font-weight: 700;
+            text-align: center;
+            gap: 2px;
+        }
+
+        .comm-mid span {
+            font-size: 1.45rem;
+            line-height: 1;
+        }
+
+        .comm-mid small {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .comm-split {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .sequence {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .sequence-head,
+        .sequence-row {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.1fr) minmax(160px, 1fr);
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .lane-title {
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: #1f2937;
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+            font-size: 0.92rem;
+        }
+
+        .seq-cell {
+            min-height: 72px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.78);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .seq-cell.client {
+            background: #fff7ea;
+        }
+
+        .seq-cell.protocol {
+            background: #f8fafc;
+            text-align: center;
+        }
+
+        .seq-cell.agent {
+            background: #eefaf7;
+        }
+
+        .seq-cell strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .seq-cell small {
+            color: var(--muted);
+        }
+
+        .seq-arrow {
+            color: var(--accent);
+            font-weight: 800;
+            font-size: 1.05rem;
+        }
+
+        .seq-note {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #effaf7;
+            border: 1px solid rgba(15, 118, 110, 0.20);
+            color: var(--text);
+        }
+
+        .map-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .map-card {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+        }
+
+        .map-card strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--accent-2);
+        }
+
+        .map-card span {
+            display: block;
+            color: var(--muted);
+        }
+
+        .chapter-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            margin-right: 8px;
+            border-radius: 999px;
+            background: rgba(15, 118, 110, 0.11);
+            color: var(--accent-2);
+            font-size: 0.82rem;
+            font-weight: 700;
+            vertical-align: middle;
+        }
+
+        .cards {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .section {
+            background: rgba(255, 250, 242, 0.90);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .section h2 {
+            margin: 0 0 12px;
+            font-size: 1.3rem;
+        }
+
+        .section p {
+            margin: 0 0 12px;
+        }
+
+        .sample-card {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            display: grid;
+            gap: 8px;
+        }
+
+        .sample-card .top {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: baseline;
+        }
+
+        .sample-card strong {
+            font-size: 1.02rem;
+            color: var(--text);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(15, 118, 110, 0.11);
+            color: var(--accent-2);
+            font-size: 0.83rem;
+            font-weight: 700;
+        }
+
+        .sample-card p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid var(--border);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.92rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(31, 41, 55, 0.08);
+        }
+
+        .note {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-left: 5px solid var(--accent);
+            background: #fff6e7;
+            border-radius: 14px;
+            color: var(--text);
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        @media (max-width: 720px) {
+
+            .hero,
+            .section {
+                padding: 20px;
+            }
+
+            .wrap {
+                padding: 16px 12px 40px;
+            }
+
+            h1 {
+                font-size: 1.9rem;
+            }
+
+            .sequence-head {
+                display: none;
+            }
+
+            .sequence-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header class="hero">
+            <div class="eyebrow">A2A sample index</div>
+            <h1>A2A サンプル一覧</h1>
+            <p class="lead">
+                このページは、<strong>1.1 〜 1.10</strong> の A2A サンプルをまとめた入口です。
+                初心者は、<strong>client が何を送り</strong>、<strong>agent がどう返すか</strong> を追うと、
+                A2A の通信の流れをつかみやすくなります。
+            </p>
+            <div class="meta">
+                <div class="meta-card">
+                    <span class="label">見方</span>
+                    <strong>client と agent の通信を追う</strong>
+                </div>
+                <div class="meta-card">
+                    <span class="label">対象</span>
+                    <strong>1.1 〜 1.10 の sample フォルダ</strong>
+                </div>
+                <div class="meta-card">
+                    <span class="label">おすすめ順</span>
+                    <strong>1.1 → 1.10 まで順番に読む</strong>
+                </div>
+            </div>
+        </header>
+
+        <section class="overview">
+            <div class="overview-panel">
+                <h2>client と agent の通信の流れ</h2>
+                <p>
+                    client はまず Agent Card を読み、次に Message を Task として送ります。
+                    agent は Task の状態や成果物をイベントとして返します。下の図は、実際に
+                    <strong>どのリクエストがどちら向きに流れるか</strong> を示しています。
+                </p>
+                <div class="sequence" aria-label="client と agent の通信シーケンス図">
+                    <div class="sequence-head" aria-hidden="true">
+                        <div class="lane-title">client.py</div>
+                        <div class="lane-title">A2A HTTP / JSON-RPC</div>
+                        <div class="lane-title">agent.py</div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.2</span>Agent Card を取得</strong>
+                            <small>A2ACardResolver が接続先の情報を読みます。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">GET → ← JSON</span></strong>
+                            <small>/.well-known/agent-card.json</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>能力を公開</strong>
+                            <small>capabilities / skills / supported_interfaces を返します。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.3</span>Message を送信</strong>
+                            <small>SendMessageRequest(message=message) を作ります。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">send_message →</span></strong>
+                            <small>message_id / context_id / parts を送る</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>Task を開始</strong>
+                            <small>Task(id, context_id, SUBMITTED) を最初のイベントとして返します。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.4</span>完了結果を受信</strong>
+                            <small>短い処理では最終 Task 内の artifacts を読みます。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">← Task</span></strong>
+                            <small>COMPLETED + artifacts</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>同期的に完了</strong>
+                            <small>add_artifact() の後に complete() します。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.5 / 1.6</span>イベントを順番に読む</strong>
+                            <small>async for で status_update / artifact_update を受け取ります。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">← ← ← stream</span></strong>
+                            <small>WORKING、artifact chunk、COMPLETED</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>途中経過を送る</strong>
+                            <small>update_status() や add_artifact(append=True) を複数回呼びます。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.7</span>Task 状態を再取得</strong>
+                            <small>受け取った task_id を GetTaskRequest に入れます。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">get_task → ← Task</span></strong>
+                            <small>現在の status を問い合わせる</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>保存済み Task を返す</strong>
+                            <small>InMemoryTaskStore にある現在状態を返します。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.8</span>キャンセル要求</strong>
+                            <small>CancelTaskRequest(id=task_id) を送ります。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">cancel_task → ← Task</span></strong>
+                            <small>CANCELED を受け取る</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>cancel() を実行</strong>
+                            <small>実行中リストから外し、TaskUpdater.cancel() で終了します。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.9</span>同じ context_id で再送信</strong>
+                            <small>task_id は毎回別でも、context_id を同じにします。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">send_message → ← Task</span></strong>
+                            <small>同じ会話として関連付ける</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>context_id ごとに処理</strong>
+                            <small>このサンプルでは context_id 別の turn 数をメモリで数えます。</small>
+                        </div>
+                    </div>
+                    <div class="sequence-row">
+                        <div class="seq-cell client">
+                            <strong><span class="chapter-badge">1.10</span>失敗状態を受信</strong>
+                            <small>status_update の state と message を表示します。</small>
+                        </div>
+                        <div class="seq-cell protocol">
+                            <strong><span class="seq-arrow">← status_update</span></strong>
+                            <small>REJECTED または FAILED</small>
+                        </div>
+                        <div class="seq-cell agent">
+                            <strong>reject / failed を返す</strong>
+                            <small>入力不備は reject、処理中の失敗は failed で返します。</small>
+                        </div>
+                    </div>
+                    <div class="seq-note">
+                        <strong>読む順番:</strong>
+                        Agent Card で接続先を知る → send_message で Task を作る → Task/status/artifact のイベントを読む →
+                        必要なら get_task / cancel_task / 同じ context_id で追加送信する、という流れです。
+                    </div>
+                </div>
+            </div>
+
+            <div class="overview-panel">
+                <h2>各章が通信のどこに当たるか</h2>
+                <p>通信の役割で見ると、どの章が「確認」「送信」「返答」「運用操作」なのかがすぐ分かります。</p>
+                <div class="map-list">
+                    <div class="map-card">
+                        <strong>1.2 接続前の確認</strong>
+                        <span>client が agent の能力を確認してから会話を始めます。</span>
+                    </div>
+                    <div class="map-card">
+                        <strong>1.3 依頼の送信</strong>
+                        <span>client から agent へ Task を送る基本通信です。</span>
+                    </div>
+                    <div class="map-card">
+                        <strong>1.4 〜 1.6 返答の種類</strong>
+                        <span>agent がどう返すかを、即時・分割・進捗通知で比べます。</span>
+                    </div>
+                    <div class="map-card">
+                        <strong>1.7 〜 1.10 運用時のやり取り</strong>
+                        <span>状態確認・キャンセル・継続会話・エラー応答を扱います。</span>
+                    </div>
+                    <div class="map-card">
+                        <strong>重要な区別</strong>
+                        <span>message は依頼内容、Task は処理単位、artifact は最終成果物、status_update は進捗や失敗通知です。</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid cards">
+            <div class="section">
+                <h2>図解ページがあるサンプル</h2>
+                <div class="grid" style="margin-top: 10px;">
+                    <div class="sample-card">
+                        <div class="top"><strong>1.1 基本的なA2A</strong><span class="badge">入門</span></div>
+                        <p>クライアントとサーバーの最初のやり取り、Agent の起動、タスク処理の流れをつかむ入口です。</p>
+                        <div class="links">
+                            <a class="link" href="1.1%20基本的なA2A/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.2 Agent Card による capability</strong><span class="badge">名刺</span>
+                        </div>
+                        <p>Agent Card に capability / skill / interface を載せて、クライアントが接続前に機能を把握する例です。</p>
+                        <div class="links">
+                            <a class="link" href="1.2%20Agent%20Card%20による%20capability/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.3 Task送信</strong><span class="badge">送信</span></div>
+                        <p>Message を SendMessageRequest に包んで送り、Task として処理される流れを示します。</p>
+                        <div class="links">
+                            <a class="link" href="1.3%20Task送信/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.4 同期レスポンス</strong><span class="badge">即時</span></div>
+                        <p>待ち時間をほとんど置かず、その場で返答が完成する同期型のパターンです。</p>
+                        <div class="links">
+                            <a class="link" href="1.4%20同期レスポンス/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.5 ストリーミングタスク</strong><span class="badge">分割返答</span></div>
+                        <p>成果物を少しずつ送り、クライアントが途中経過を見られるストリーミングの例です。</p>
+                        <div class="links">
+                            <a class="link" href="1.5%20ストリーミングタスク/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.6 長期実行タスク</strong><span class="badge">進捗表示</span></div>
+                        <p>時間のかかる処理に対して、status_update で進行状況を伝えるパターンです。</p>
+                        <div class="links">
+                            <a class="link" href="1.6%20長期実行タスク/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>図解ページがあるサンプル</h2>
+                <div class="grid" style="margin-top: 10px;">
+                    <div class="sample-card">
+                        <div class="top"><strong>1.7 Task状態取得</strong><span class="badge">確認</span></div>
+                        <p>送った Task の状態をあとから読み直して確認するサンプルです。</p>
+                        <div class="links">
+                            <a class="link" href="1.7%20Task状態取得/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.8 Taskキャンセル</strong><span class="badge">停止</span></div>
+                        <p>進行中の Task を途中で止める流れを学ぶサンプルです。</p>
+                        <div class="links">
+                            <a class="link" href="1.8%20Taskキャンセル/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.9 複数turn context継続</strong><span class="badge">会話</span></div>
+                        <p>前の会話の文脈を引き継いで、複数ターンで続けるサンプルです。</p>
+                        <div class="links">
+                            <a class="link" href="1.9%20複数turn%20context継続/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="top"><strong>1.10 エラー処理</strong><span class="badge">例外</span></div>
+                        <p>失敗時の扱い、エラーメッセージ、リカバリーの考え方を確認するサンプルです。</p>
+                        <div class="links">
+                            <a class="link" href="1.10%20エラー処理/guide.html">図解ガイド</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="note">
+                    1.1 〜 1.10 まで、guide.html から順番に読めるようになりました。
+                </div>
+            </div>
+        </section>
+
+        <div class="footer">
+            まずは 1.1 から順番に見ると理解しやすいです。1.7 以降は、実運用で必要になる状態確認、キャンセル、会話継続、エラー処理の基礎です。
+        </div>
+    </div>
+</body>
+
+</html>

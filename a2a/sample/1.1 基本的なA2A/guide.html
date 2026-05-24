@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1.1 基本的なA2A - 初心者向けガイド</title>
+    <style>
+        :root {
+            --bg: #f6f3ec;
+            --panel: #fffaf2;
+            --panel-2: #f2ede2;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --accent: #b45309;
+            --accent-2: #0f766e;
+            --border: #e7dcc7;
+            --shadow: 0 14px 40px rgba(31, 41, 55, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(180, 83, 9, 0.10), transparent 28%),
+                radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 24%),
+                linear-gradient(180deg, #fffdf8 0%, var(--bg) 100%);
+            line-height: 1.75;
+        }
+
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #fff8eb 0%, #fffdf8 55%, #ecf7f5 100%);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -60px auto;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(180, 83, 9, 0.16), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(180, 83, 9, 0.10);
+            color: var(--accent);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            line-height: 1.15;
+        }
+
+        .lead {
+            margin: 0;
+            max-width: 72ch;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .meta-card .label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .meta-card strong {
+            font-size: 1rem;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 24px;
+        }
+
+        .two-col {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        }
+
+        .section {
+            background: rgba(255, 250, 242, 0.86);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .section h2 {
+            margin: 0 0 12px;
+            font-size: 1.35rem;
+        }
+
+        .section h3 {
+            margin: 18px 0 10px;
+            font-size: 1.05rem;
+            color: var(--accent-2);
+        }
+
+        .section p {
+            margin: 0 0 12px;
+            color: var(--text);
+        }
+
+        .section ul {
+            margin: 10px 0 0 1.2em;
+            padding: 0;
+        }
+
+        .section li {
+            margin: 8px 0;
+        }
+
+        .file-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .file-item {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+        }
+
+        .file-item strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .file-item span {
+            color: var(--muted);
+        }
+
+        .diagram {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .flow {
+            display: grid;
+            gap: 10px;
+        }
+
+        .node {
+            background: linear-gradient(180deg, #ffffff 0%, #fff7ea 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 8px 18px rgba(31, 41, 55, 0.06);
+        }
+
+        .node strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .node small {
+            color: var(--muted);
+            display: block;
+        }
+
+        .arrow {
+            display: flex;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.3rem;
+            line-height: 1;
+            margin: -2px 0;
+        }
+
+        .lane {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .lane-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px;
+        }
+
+        .lane-card .title {
+            font-weight: 700;
+            color: var(--accent-2);
+            margin-bottom: 6px;
+        }
+
+        .callout {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-left: 5px solid var(--accent);
+            background: #fff6e7;
+            border-radius: 14px;
+        }
+
+        .code {
+            font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+            font-size: 0.95rem;
+            background: #1f2937;
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin-top: 12px;
+            white-space: pre-wrap;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(15, 118, 110, 0.11);
+            color: var(--accent-2);
+            font-size: 0.86rem;
+            font-weight: 700;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        @media (max-width: 720px) {
+
+            .hero,
+            .section {
+                padding: 20px;
+            }
+
+            .wrap {
+                padding: 16px 12px 40px;
+            }
+
+            h1 {
+                font-size: 1.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header class="hero">
+            <div class="eyebrow">A2A サンプル 1.1 基本的なA2A</div>
+            <h1>初心者向けガイド: 基本の処理の流れを図で理解する</h1>
+            <p class="lead">
+                このページは、<strong>hello_world_agent.py</strong> と <strong>client.py</strong> が
+                どの順番で動くのかを、できるだけやさしく整理したドキュメントです。
+                「サーバーが何をしているか」「クライアントが何を送っているか」「タスクがどう進むか」を
+                ひと目で追えるようにしています。
+                <br />このサンプルは <strong>v1.0 基準</strong> で説明しています。
+            </p>
+            <div class="meta">
+                <div class="meta-card">
+                    <span class="label">見る対象</span>
+                    <strong>1.1 の基本的な A2A 処理</strong>
+                </div>
+                <div class="meta-card">
+                    <span class="label">主なファイル</span>
+                    <strong>hello_world_agent.py / client.py</strong>
+                </div>
+                <div class="meta-card">
+                    <span class="label">学べること</span>
+                    <strong>送信・受信・タスク更新</strong>
+                </div>
+            </div>
+        </header>
+
+        <section class="grid two-col">
+            <div class="section">
+                <h2>1. このサンプルでやっていること</h2>
+                <p>
+                    このサンプルは、ユーザーが入力したメッセージを A2A クライアントからサーバーへ送り、
+                    サーバー側のエージェントが内容を見て返答し、その結果をストリームで返す流れを示します。
+                </p>
+                <div class="file-list">
+                    <div class="file-item">
+                        <strong>hello_world_agent.py</strong>
+                        <span>サーバー側です。エージェントの返答ロジック、タスク管理、各種トランスポートの起動を担当します。</span>
+                    </div>
+                    <div class="file-item">
+                        <strong>client.py</strong>
+                        <span>クライアント側です。Agent Card を見つけて接続し、メッセージを送ってストリーム結果を表示します。</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>2. 使う前提の用語</h2>
+                <div class="lane">
+                    <div class="lane-card">
+                        <div class="title">Agent Card</div>
+                        <div>このエージェントが何に対応しているかをまとめた名刺のような情報です。</div>
+                    </div>
+                    <div class="lane-card">
+                        <div class="title">Message</div>
+                        <div>ユーザーが送る1通の入力メッセージです。</div>
+                    </div>
+                    <div class="lane-card">
+                        <div class="title">Task</div>
+                        <div>1回の依頼を表す単位です。進行状況や結果がここに紐づきます。</div>
+                    </div>
+                    <div class="lane-card">
+                        <div class="title">EventQueue / TaskUpdater</div>
+                        <div>タスクの状態変化や成果物を、順番にクライアントへ伝えるための仕組みです。</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="margin-top: 18px;">
+            <h2>3. 全体の流れ</h2>
+            <p>
+                まずクライアントが Agent Card を見つけます。そのあと接続方法を決め、ユーザー入力を送信します。
+                サーバーはタスクを作成し、作業中メッセージを出し、最後に成果物を返します。
+            </p>
+            <div class="diagram">
+                <div class="flow">
+                    <div class="node">
+                        <strong>1. クライアント起動</strong>
+                        <small>client.py が起動し、接続先 URL とトランスポート候補を準備します。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>2. Agent Card を取得</strong>
+                        <small>対応プロトコルや公開 URL を確認して、実際の接続先を決めます。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>3. メッセージ送信</strong>
+                        <small>ユーザー入力を Message に変換して、サーバーへ送ります。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>4. サーバーが処理</strong>
+                        <small>hello_world_agent.py が内容を見て返答文を作ります。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>5. ストリームで返答</strong>
+                        <small>status_update や artifact_update を順番に受け取り、画面に表示します。</small>
+                    </div>
+                </div>
+            </div>
+            <div class="callout">
+                <strong>ポイント</strong>
+                <div>
+                    A2A では「1回送って終わり」ではなく、<strong>タスクの進行状況</strong> と <strong>最終成果物</strong> を
+                    分けて受け取れるのが大きな特徴です。
+                </div>
+            </div>
+        </section>
+
+        <section class="grid two-col" style="margin-top: 18px;">
+            <div class="section">
+                <h2>4. サーバー側の処理</h2>
+                <p>
+                    サーバーは、まず <strong>Agent Card</strong> を用意して、どのプロトコルで話せるかを公開します。
+                    そのあと、受け取ったメッセージを <strong>SampleAgentExecutor</strong> が読んで、
+                    入力内容に応じた返答を作ります。
+                </p>
+                <h3>サーバーの役割を図で見る</h3>
+                <div class="diagram">
+                    <div class="node">
+                        <strong>Agent Card を作る</strong>
+                        <small>名前、説明、機能、接続先 URL をまとめます。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>Task Store を用意する</strong>
+                        <small>今あるタスクを一時的に記録します。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>Request Handler に渡す</strong>
+                        <small>クライアントからのリクエストを実際のエージェント処理へつなぎます。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>REST / JSON-RPC / gRPC を公開する</strong>
+                        <small>同じ処理を複数の接続方法から利用できるようにします。</small>
+                    </div>
+                </div>
+                <div class="code">if "hello" in ql or "hi" in ql:
+                    return "こんにちは。はじめまして。"
+                    if "how are you" in ql:
+                    return "元気です。お気遣いありがとうございます。"
+                    if "goodbye" in ql or "bye" in ql:
+                    return "さようなら。すてきな一日をお過ごしください。"</div>
+            </div>
+
+            <div class="section">
+                <h2>5. クライアント側の処理</h2>
+                <p>
+                    クライアントは、まず接続先から <strong>Agent Card</strong> を読み取ります。
+                    次に、実際に使うトランスポートを決め、ユーザー入力を <strong>Message</strong> として送ります。
+                    返ってきたイベントはストリームで順に表示します。
+                </p>
+                <h3>クライアントの役割を図で見る</h3>
+                <div class="diagram">
+                    <div class="node">
+                        <strong>1. URL を受け取る</strong>
+                        <small>どのエージェントへつなぐかを決めます。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>2. Agent Card を取得する</strong>
+                        <small>そのエージェントの対応機能と接続方法を確認します。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>3. メッセージを入力する</strong>
+                        <small>ターミナルから文字を入力します。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>4. SendMessageRequest を送る</strong>
+                        <small>Message を包んでサーバーへ送信します。</small>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="node">
+                        <strong>5. ストリームを読む</strong>
+                        <small>タスク開始、状態更新、成果物更新、最終メッセージを順番に表示します。</small>
+                    </div>
+                </div>
+                <div class="callout">
+                    <strong>ポイント</strong>
+                    <div>
+                        クライアントは、結果を一気に待つのではなく、<strong>途中経過も見せてもらう</strong> ことで
+                        「今何が起きているか」をわかりやすくしています。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="margin-top: 18px;">
+            <h2>6. タスクの状態がどう変わるか</h2>
+            <p>
+                タスクは、送ったあとに少しずつ状態が変わります。ここでは、その変化を簡単な流れで示します。
+            </p>
+            <div class="diagram">
+                <div class="node">
+                    <strong>SUBMITTED</strong>
+                    <small>タスクを受け取った直後です。</small>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="node">
+                    <strong>WORKING</strong>
+                    <small>エージェントが処理中です。クライアントには進行中メッセージが届きます。</small>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="node">
+                    <strong>COMPLETED / FAILED / CANCELED / REJECTED</strong>
+                    <small>処理が終わった状態です。クライアントはここで終了扱いにします。</small>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid two-col" style="margin-top: 18px;">
+            <div class="section">
+                <h2>7. 初心者向けの読み方</h2>
+                <ul>
+                    <li>まず <strong>client.py</strong> を見て、「どこに送るのか」を把握します。</li>
+                    <li>次に <strong>hello_world_agent.py</strong> を見て、「受け取ったあと何を返すのか」を確認します。</li>
+                    <li>最後に <strong>Task</strong> と <strong>EventQueue</strong> を見ると、「途中経過がどう流れるか」がつながります。</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>8. そのまま試すときの見どころ</h2>
+                <ul>
+                    <li>入力が <strong>hi</strong> のとき、あいさつが返るか。</li>
+                    <li>入力が <strong>how are you</strong> のとき、会話を続ける返答になるか。</li>
+                    <li>入力のあとに <strong>タスク開始</strong>、<strong>タスク状態更新</strong>、<strong>タスク成果物更新</strong> が順番に出るか。</li>
+                </ul>
+            </div>
+        </section>
+
+        <div class="footer">
+            このドキュメントは、A2A の基本的な処理の流れを最初につかむための入門ページです。
+        </div>
+    </div>
+</body>
+
+</html>

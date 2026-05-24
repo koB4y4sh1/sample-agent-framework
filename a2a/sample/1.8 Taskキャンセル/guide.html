@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1.8 Taskキャンセル - 図解ガイド</title>
+    <style>
+        :root {
+            --bg: #f6f3ec;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --accent: #b45309;
+            --accent2: #0f766e;
+            --border: #e7dcc7;
+            --shadow: 0 14px 40px rgba(31, 41, 55, .10);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top left, rgba(180, 83, 9, .10), transparent 28%), radial-gradient(circle at top right, rgba(15, 118, 110, .12), transparent 24%), linear-gradient(180deg, #fffdf8 0%, var(--bg) 100%);
+            line-height: 1.75
+        }
+
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 20px 60px
+        }
+
+        .hero,
+        .section {
+            background: rgba(255, 250, 242, .92);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            box-shadow: var(--shadow)
+        }
+
+        .hero {
+            padding: 32px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -60px auto;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(180, 83, 9, .16), transparent 70%);
+            border-radius: 50%
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(180, 83, 9, .10);
+            color: var(--accent);
+            font-size: .92rem;
+            font-weight: 700
+        }
+
+        .lead {
+            margin: 0;
+            max-width: 74ch;
+            color: var(--muted)
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(2rem, 4vw, 3.1rem);
+            line-height: 1.15
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 22px
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, .8);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px
+        }
+
+        .meta-card .label {
+            display: block;
+            font-size: .85rem;
+            color: var(--muted);
+            margin-bottom: 4px
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 24px
+        }
+
+        .two-col {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))
+        }
+
+        .section {
+            padding: 24px
+        }
+
+        .section h2 {
+            margin: 0 0 12px;
+            font-size: 1.32rem
+        }
+
+        .section p {
+            margin: 0 0 12px
+        }
+
+        .card-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px
+        }
+
+        .card {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #f2ede2;
+            border: 1px solid var(--border)
+        }
+
+        .card strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node {
+            background: linear-gradient(180deg, #fff 0%, #fff7ea 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 8px 18px rgba(31, 41, 55, .06)
+        }
+
+        .node strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node small {
+            color: var(--muted);
+            display: block
+        }
+
+        .arrow {
+            display: flex;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.3rem;
+            line-height: 1;
+            margin: -2px 0
+        }
+
+        .code {
+            font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+            font-size: .95rem;
+            background: #1f2937;
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin-top: 12px;
+            white-space: pre-wrap
+        }
+
+        .callout {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-left: 5px solid var(--accent);
+            background: #fff6e7;
+            border-radius: 14px
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: .95rem;
+            text-align: center
+        }
+
+        @media (max-width:720px) {
+
+            .hero,
+            .section {
+                padding: 20px
+            }
+
+            .wrap {
+                padding: 16px 12px 40px
+            }
+
+            h1 {
+                font-size: 1.9rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header class="hero">
+            <div class="eyebrow">A2A サンプル 1.8 Taskキャンセル</div>
+            <h1>進行中の Task を途中で止める</h1>
+            <p class="lead">このサンプルは、動いている Task をキャンセルして、サーバーやクライアントの状態がどう変わるかを学ぶページです。待ち時間が長い処理を止めたいときに役立ちます。</p>
+            <div class="meta">
+                <div class="meta-card"><span class="label">学ぶこと</span><strong>cancel / canceled / 停止</strong></div>
+                <div class="meta-card"><span class="label">主な登場ファイル</span><strong>agent.py / client.py</strong></div>
+                <div class="meta-card"><span class="label">ポイント</span><strong>終わる前に止められる</strong></div>
+            </div>
+        </header>
+
+        <section class="grid two-col">
+            <div class="section">
+                <h2>1. 何をしているサンプルか</h2>
+                <p>クライアントが Task を送ったあと、必要に応じてキャンセル要求を送ります。サーバーは処理を止められるなら止めて、状態を canceled に変えます。</p>
+                <div class="card-list">
+                    <div class="card"><strong>agent.py</strong><span>キャンセル要求を受けて、実行中の処理を止めます。</span></div>
+                    <div class="card"><strong>client.py</strong><span>途中で中断したいときに cancel を送ります。</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <h2>2. 用語のイメージ</h2>
+                <div class="card-list">
+                    <div class="card"><strong>CancelTaskRequest</strong><span>「この Task はもう止めてください」という依頼です。</span></div>
+                    <div class="card"><strong>canceled</strong><span>キャンセル済みであることを示す状態です。</span></div>
+                    <div class="card"><strong>graceful stop</strong><span>途中状態を壊さず、自然に止める考え方です。</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="margin-top:18px;">
+            <h2>3. 全体の流れ</h2>
+            <div class="node"><strong>1. Task を開始する</strong><small>まずは処理を走らせます。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>2. 途中で止めたくなる</strong><small>ユーザーが中断したいと判断します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>3. cancel を送る</strong><small>クライアントがキャンセル要求を出します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>4. サーバーが停止処理を行う</strong><small>実行中のループや待機を止めます。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>5. canceled を返す</strong><small>止まったことを明示します。</small></div>
+            <div class="callout"><strong>ポイント</strong>
+                <div>キャンセルは「失敗」ではなく、「もう続けない」という正常な操作です。長い処理ほど重要になります。</div>
+            </div>
+        </section>
+
+        <section class="grid two-col" style="margin-top:18px;">
+            <div class="section">
+                <h2>4. サーバー側の見どころ</h2>
+                <p>サーバーは、実行中の task_id を記録しておきます。キャンセル要求が来たら実行中リストから外し、ループ側はそれを見て途中終了します。</p>
+                <div class="code">if task_id not in self.running_task_ids:
+    return
+
+await TaskUpdater(event_queue, task_id, context_id).cancel()</div>
+            </div>
+            <div class="section">
+                <h2>5. クライアント側の見どころ</h2>
+                <p>クライアントは、最初の Task イベントから task_id を取り出し、その id を指定してキャンセルします。結果よりも、停止の流れを理解するのが大切です。</p>
+                <div class="code">canceled_task = await client.cancel_task(
+    CancelTaskRequest(id=task_id)
+)
+print(TaskState.Name(canceled_task.status.state))</div>
+            </div>
+        </section>
+
+        <div class="footer">Taskキャンセルは、ユーザーの操作を尊重するための大切な仕組みです。長い処理にこそ効きます。</div>
+    </div>
+</body>
+
+</html>

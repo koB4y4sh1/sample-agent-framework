@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1.7 Task状態取得 - 図解ガイド</title>
+    <style>
+        :root {
+            --bg: #f6f3ec;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --accent: #b45309;
+            --accent2: #0f766e;
+            --border: #e7dcc7;
+            --shadow: 0 14px 40px rgba(31, 41, 55, .10);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top left, rgba(180, 83, 9, .10), transparent 28%), radial-gradient(circle at top right, rgba(15, 118, 110, .12), transparent 24%), linear-gradient(180deg, #fffdf8 0%, var(--bg) 100%);
+            line-height: 1.75
+        }
+
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 20px 60px
+        }
+
+        .hero,
+        .section {
+            background: rgba(255, 250, 242, .92);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            box-shadow: var(--shadow)
+        }
+
+        .hero {
+            padding: 32px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -60px auto;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(180, 83, 9, .16), transparent 70%);
+            border-radius: 50%
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(180, 83, 9, .10);
+            color: var(--accent);
+            font-size: .92rem;
+            font-weight: 700
+        }
+
+        .lead {
+            margin: 0;
+            max-width: 74ch;
+            color: var(--muted)
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(2rem, 4vw, 3.1rem);
+            line-height: 1.15
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 22px
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, .8);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px
+        }
+
+        .meta-card .label {
+            display: block;
+            font-size: .85rem;
+            color: var(--muted);
+            margin-bottom: 4px
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 24px
+        }
+
+        .two-col {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))
+        }
+
+        .section {
+            padding: 24px
+        }
+
+        .section h2 {
+            margin: 0 0 12px;
+            font-size: 1.32rem
+        }
+
+        .section p {
+            margin: 0 0 12px
+        }
+
+        .card-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px
+        }
+
+        .card {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #f2ede2;
+            border: 1px solid var(--border)
+        }
+
+        .card strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node {
+            background: linear-gradient(180deg, #fff 0%, #fff7ea 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 8px 18px rgba(31, 41, 55, .06)
+        }
+
+        .node strong {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .node small {
+            color: var(--muted);
+            display: block
+        }
+
+        .arrow {
+            display: flex;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.3rem;
+            line-height: 1;
+            margin: -2px 0
+        }
+
+        .code {
+            font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+            font-size: .95rem;
+            background: #1f2937;
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin-top: 12px;
+            white-space: pre-wrap
+        }
+
+        .callout {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-left: 5px solid var(--accent2);
+            background: #effaf7;
+            border-radius: 14px
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: var(--muted);
+            font-size: .95rem;
+            text-align: center
+        }
+
+        @media (max-width:720px) {
+
+            .hero,
+            .section {
+                padding: 20px
+            }
+
+            .wrap {
+                padding: 16px 12px 40px
+            }
+
+            h1 {
+                font-size: 1.9rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header class="hero">
+            <div class="eyebrow">A2A サンプル 1.7 Task状態取得</div>
+            <h1>送信した Task の今の状態をあとから確認する</h1>
+            <p class="lead">このサンプルは、いちど送った Task の状態を読み直して、いま submitted なのか、working なのか、completed
+                なのかを確認する流れです。長くかかる処理の途中確認に向いています。</p>
+            <div class="meta">
+                <div class="meta-card"><span class="label">学ぶこと</span><strong>task_id / status / 再確認</strong></div>
+                <div class="meta-card"><span class="label">主な登場ファイル</span><strong>agent.py / client.py</strong></div>
+                <div class="meta-card"><span class="label">ポイント</span><strong>状態を読むだけでも役立つ</strong></div>
+            </div>
+        </header>
+
+        <section class="grid two-col">
+            <div class="section">
+                <h2>1. 何をしているサンプルか</h2>
+                <p>クライアントは最初に Task を送信し、そのあと task_id を使って状態を問い合わせます。サーバーは今の状態を返すだけなので、処理の進み具合を確認しやすくなります。</p>
+                <div class="card-list">
+                    <div class="card"><strong>agent.py</strong><span>Task を保存し、状態問い合わせに応答します。</span></div>
+                    <div class="card"><strong>client.py</strong><span>task_id を持っておき、必要なタイミングで再確認します。</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <h2>2. 用語のイメージ</h2>
+                <div class="card-list">
+                    <div class="card"><strong>task_id</strong><span>あとから同じ Task を探すための番号です。</span></div>
+                    <div class="card"><strong>status</strong><span>SUBMITTED / WORKING / COMPLETED などの Task 状態です。</span></div>
+                    <div class="card"><strong>GetTaskRequest</strong><span>task_id を指定して、いまどうなっているかを問い合わせるリクエストです。</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="margin-top:18px;">
+            <h2>3. 全体の流れ</h2>
+            <div class="node"><strong>1. Task を送る</strong><small>まずは処理を開始します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>2. task_id を受け取る</strong><small>あとから探すための鍵になります。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>3. 状態を問い合わせる</strong><small>一定時間ごとに現在の様子を確認します。</small></div>
+            <div class="arrow">↓</div>
+            <div class="node"><strong>4. サーバーが現在の状態を返す</strong><small>SUBMITTED / WORKING / COMPLETED などが見えます。</small>
+            </div>
+            <div class="callout"><strong>ポイント</strong>
+                <div>「送ったあとにどうなったか」を見たいときは、メッセージを送り直すより状態問い合わせが分かりやすいです。</div>
+            </div>
+        </section>
+
+        <section class="grid two-col" style="margin-top:18px;">
+            <div class="section">
+                <h2>4. サーバー側の見どころ</h2>
+                <p>サーバー側では <code>InMemoryTaskStore</code> が Task の現在状態を保持します。サンプルコードでは、状態を変えるたびに <code>TaskUpdater</code> が store へ反映します。</p>
+                <div class="code">request_handler = DefaultRequestHandler(
+    agent_executor=GetTaskAgentExecutor(),
+    task_store=InMemoryTaskStore(),
+    agent_card=agent_card,
+)</div>
+            </div>
+            <div class="section">
+                <h2>5. クライアント側の見どころ</h2>
+                <p>クライアントは task_id を覚えておき、必要なときに <code>GetTaskRequest</code> で状態を見に行きます。長い処理でも、今の段階を把握しやすくなります。</p>
+                <div class="code">task = await client.get_task(GetTaskRequest(id=task_id))
+print(TaskState.Name(task.status.state))</div>
+            </div>
+        </section>
+
+        <div class="footer">Task状態取得は、A2A の「あとから見に行ける」性質を理解するための入り口です。進捗確認や監視に役立ちます。</div>
+    </div>
+</body>
+
+</html>
