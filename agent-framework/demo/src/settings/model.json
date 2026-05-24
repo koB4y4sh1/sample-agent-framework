@@ -11,16 +11,6 @@
     },
     {
         "provider_family": "anthropic",
-        "model_name": "claude-opus-4-6",
-        "default_options": {
-            "max_tokens": 10000,
-            "thinking": {
-                "type": "adaptive"
-            }
-        }
-    },
-    {
-        "provider_family": "anthropic",
         "model_name": "claude-haiku-4-5",
         "default_options": {
             "max_tokens": 4000,
@@ -35,10 +25,42 @@
         "model_name": "gpt-5.4-nano",
         "default_options": {
             "store": false,
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+                "reasoning.encrypted_content"
+            ],
             "reasoning": {
                 "effort": "low",
                 "summary": "auto"
+            }
+        }
+    },
+    {
+        "provider_family": "google",
+        "model_name": "gemini-3.1-pro",
+        "default_options": {
+            "thinking_config": {
+                "include_thoughts": true,
+                "thinking_level": "HIGH"
+            }
+        }
+    },
+    {
+        "provider_family": "google",
+        "model_name": "gemini-3.5-flash",
+        "default_options": {
+            "thinking_config": {
+                "include_thoughts": true,
+                "thinking_level": "MEDIUM"
+            }
+        }
+    },
+    {
+        "provider_family": "google",
+        "model_name": "gemini-3.1-flash-lite",
+        "default_options": {
+            "thinking_config": {
+                "include_thoughts": true,
+                "thinking_level": "LOW"
             }
         }
     }
