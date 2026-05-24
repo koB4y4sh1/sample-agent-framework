@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Framework の compaction 図解</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --text: #1f2328;
+      --muted: #59636e;
+      --surface: #f6f8fa;
+      --surface-strong: #eef2f6;
+      --border: #d0d7de;
+      --accent: #0969da;
+      --accent-bg: #ddf4ff;
+      --warning: #9a6700;
+      --warning-bg: #fff8c5;
+      --code-bg: #eff2f5;
+      --shadow: 0 8px 24px rgb(140 149 159 / 18%);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --surface: #161b22;
+        --surface-strong: #21262d;
+        --border: #30363d;
+        --accent: #58a6ff;
+        --accent-bg: #0d2742;
+        --warning: #d29922;
+        --warning-bg: #342a00;
+        --code-bg: #1f242c;
+        --shadow: none;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.9rem, 4vw, 3rem);
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 40px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.35rem;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    code {
+      padding: 0.15em 0.35em;
+      border-radius: 4px;
+      background: var(--code-bg);
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      overflow-wrap: anywhere;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--surface);
+    }
+
+    .hero,
+    .card,
+    .diagram-panel {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 20px;
+      margin: 20px 0 18px;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .note,
+    .warning {
+      margin: 16px 0;
+      padding: 14px 16px;
+      border-radius: 8px;
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .warning {
+      border-left: 4px solid var(--warning);
+      background: var(--warning-bg);
+    }
+
+    .diagram-panel {
+      margin: 16px 0;
+      padding: 16px;
+      overflow-x: auto;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .legend span {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-strong);
+    }
+
+    .refs {
+      padding-left: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Agent Framework の compaction 図解</h1>
+
+    <section class="hero">
+      <p><strong>結論:</strong> compaction は、長くなった会話履歴をそのまま全部モデルへ渡さず、重要な文脈を残しながら小さくする処理です。</p>
+      <p class="lead">この demo では <code>src/agent/compaction.py</code> で <code>CompactionProvider</code> を作り、<code>DemoAgent</code> の <code>context_providers</code> に登録しています。</p>
+    </section>
+
+    <h2>なぜ必要か</h2>
+    <div class="grid">
+      <div class="card">
+        <strong>上限超過</strong>
+        <p>履歴が増えると、モデルのコンテキスト上限を超える可能性があります。</p>
+      </div>
+      <div class="card">
+        <strong>コスト増加</strong>
+        <p>入力トークンが増えるほど、API コストも増えます。</p>
+      </div>
+      <div class="card">
+        <strong>応答遅延</strong>
+        <p>モデルへ渡す入力が大きいほど、応答時間が長くなります。</p>
+      </div>
+    </div>
+
+    <h2>この demo の全体像</h2>
+    <div class="diagram-panel">
+      <pre class="mermaid">
+flowchart TD
+    User[ユーザー入力] --> Agent[DemoAgent]
+    Agent --> Providers[context_providers]
+    Providers --> History[LocalHistoryProvider<br/>会話履歴を読む]
+    Providers --> Convert[MessageConversionContextProvider<br/>プロバイダー向けに変換]
+    Providers --> Memory[UserProfileContextProvider<br/>ユーザー情報を補足]
+    Providers --> Skills[SkillsProvider<br/>スキルを補足]
+    Providers --> Compact[CompactionProvider<br/>履歴を小さくする]
+    Compact --> Model[LLM 呼び出し]
+    Model --> Response[応答]
+    Response --> After[after_strategy<br/>保存済み履歴を軽くする]
+      </pre>
+    </div>
+    <div class="note">
+      <code>history_source_id</code> は、どの履歴プロバイダーのメッセージを圧縮対象にするかを Agent Framework に伝える識別子です。この demo では <code>LocalHistoryProvider.source_id</code> を渡します。
+    </div>
+
+    <h2>before_strategy と after_strategy</h2>
+    <div class="diagram-panel">
+      <pre class="mermaid">
+sequenceDiagram
+    participant A as Agent
+    participant H as LocalHistoryProvider
+    participant C as CompactionProvider
+    participant M as LLM
+
+    A->>H: 保存済み履歴を取得
+    A->>C: before_strategy を適用
+    C-->>A: 今回モデルへ渡す履歴を小さくする
+    A->>M: 圧縮後の履歴で呼び出し
+    M-->>A: 応答
+    A->>H: 新しい会話を保存
+    A->>C: after_strategy を適用
+    C-->>H: 次回用に保存済み履歴を軽くする
+      </pre>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>種類</th><th>実行タイミング</th><th>目的</th><th>この demo の実装</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>before_strategy</code></td><td>モデル呼び出し前</td><td>今回モデルに渡す履歴を小さくする</td><td>ツール結果圧縮、要約、スライディングウィンドウ</td></tr>
+        <tr><td><code>after_strategy</code></td><td>モデル呼び出し後</td><td>次回ターン開始時の履歴を軽くする</td><td>古いツール結果だけ圧縮</td></tr>
+        <tr><td><code>compact_messages</code></td><td>任意のタイミング</td><td>手元のメッセージ配列を直接小さくする</td><td>古いグループを削除</td></tr>
+      </tbody>
+    </table>
+
+    <h2>before_strategy の処理順</h2>
+    <div class="diagram-panel">
+      <pre class="mermaid">
+flowchart LR
+    Start[会話履歴] --> Budget{token_budget<br/>以内?}
+    Budget -- はい --> Done[そのまま使う]
+    Budget -- いいえ --> Tool[1. ToolResultCompactionStrategy<br/>古いツール結果を短くする]
+    Tool --> Budget2{token_budget<br/>以内?}
+    Budget2 -- はい --> Done
+    Budget2 -- いいえ --> Summary[2. SummarizationStrategy<br/>古い会話を要約する]
+    Summary --> Budget3{token_budget<br/>以内?}
+    Budget3 -- はい --> Done
+    Budget3 -- いいえ --> Window[3. SlidingWindowStrategy<br/>最新グループだけ残す]
+    Window --> Done
+      </pre>
+    </div>
+    <div class="card">
+      <strong>TokenBudgetComposedStrategy の役割</strong>
+      <p>複数の戦略を順番に実行します。推定トークン数が <code>token_budget</code> 以下になれば、そこで後続戦略を止めます。</p>
+    </div>
+
+    <h2>各戦略の意味</h2>
+    <table>
+      <thead>
+        <tr><th>戦略</th><th>何をするか</th><th>情報の残りやすさ</th><th>LLM が必要か</th><th>この demo での用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ToolResultCompactionStrategy</code></td><td>古いツール結果を短い要約メッセージにする</td><td>高い</td><td>不要</td><td>最初に実行する軽い圧縮</td></tr>
+        <tr><td><code>SummarizationStrategy</code></td><td>古い会話を LLM で要約する</td><td>中程度</td><td>必要</td><td>長い会話の文脈を短く残す</td></tr>
+        <tr><td><code>SlidingWindowStrategy</code></td><td>最新のメッセージグループだけ残す</td><td>低い</td><td>不要</td><td>それでも長い場合の強めの制限</td></tr>
+        <tr><td><code>TruncationStrategy</code></td><td>古いグループを削除する</td><td>低い</td><td>不要</td><td>ad-hoc compaction の最終手段</td></tr>
+      </tbody>
+    </table>
+
+    <h2>メッセージグループ</h2>
+    <p>Agent Framework の compaction は、単純に 1 メッセージずつ削るのではなく、関連メッセージをグループとして扱います。</p>
+    <div class="diagram-panel">
+      <pre class="mermaid">
+flowchart TD
+    S[system<br/>常に保護される]
+    U[user<br/>ユーザー発話]
+    A[assistant_text<br/>通常の回答]
+    T[tool_call<br/>ツール呼び出し + ツール結果]
+    Sum[summary<br/>要約で作られたメッセージ]
+      </pre>
+    </div>
+    <div class="warning">
+      <code>tool_call</code> は、ツール呼び出しとツール結果が対応しています。片方だけ削ると LLM API の入力として不整合になるため、まとめて扱います。
+    </div>
+
+    <h2>設定値の読み方</h2>
+    <table>
+      <thead>
+        <tr><th>設定</th><th>既定値</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>token_budget</code></td><td><code>16_000</code></td><td>before_strategy が目標にする推定トークン数</td></tr>
+        <tr><td><code>keep_last_tool_call_groups</code></td><td><code>1</code></td><td>最新いくつのツール呼び出しグループを完全な形で残すか</td></tr>
+        <tr><td><code>summary_target_count</code></td><td><code>4</code></td><td>要約後もそのまま残す最新メッセージ数</td></tr>
+        <tr><td><code>summary_threshold</code></td><td><code>2</code></td><td>要約を始めるまでの余裕値</td></tr>
+        <tr><td><code>keep_last_groups</code></td><td><code>20</code></td><td>最終的に残す最新の非 system グループ数</td></tr>
+        <tr><td><code>ad_hoc_max_n</code></td><td><code>8_000</code></td><td>ad-hoc 圧縮を始める推定トークン数</td></tr>
+        <tr><td><code>ad_hoc_compact_to</code></td><td><code>4_000</code></td><td>ad-hoc 圧縮後の目標推定トークン数</td></tr>
+      </tbody>
+    </table>
+
+    <h2>実装上の注意</h2>
+    <div class="grid">
+      <div class="card">
+        <strong>トークン数は概算</strong>
+        <p><code>CharacterEstimatorTokenizer</code> は 4 文字を 1 トークン相当とみなします。モデル固有の正確なトークン数ではありません。</p>
+      </div>
+      <div class="card">
+        <strong>要約には LLM が必要</strong>
+        <p><code>SummarizationStrategy</code> は要約用 LLM クライアントが必要です。この demo では <code>DemoApplication</code> が <code>haiku_client</code> を渡しています。</p>
+      </div>
+      <div class="card">
+        <strong>TruncationStrategy は削除</strong>
+        <p><code>TruncationStrategy</code> は要約せずに古い情報を削除します。通常の会話では、先にツール結果圧縮と要約を使う構成が妥当です。</p>
+      </div>
+      <div class="card">
+        <strong>API は試験段階</strong>
+        <p>Microsoft Learn では、Python の compaction 戦略は <code>agent_framework._compaction</code> から import する試験段階 API と説明されています。</p>
+      </div>
+    </div>
+
+    <h2>参照</h2>
+    <ul class="refs">
+      <li><a href="https://learn.microsoft.com/ja-jp/agent-framework/agents/conversations/compaction?pivots=programming-language-csharp">Microsoft Learn: Agent Framework compaction</a></li>
+      <li>実装: <code>src/agent/compaction.py</code></li>
+      <li>登録箇所: <code>src/app.py</code>, <code>src/agent/agents.py</code></li>
+    </ul>
+  </main>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
+      securityLevel: "loose"
+    });
+  </script>
+</body>
+</html>

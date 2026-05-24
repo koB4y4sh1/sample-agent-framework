@@ -18,6 +18,28 @@ from utils.print import print_gray
 
 @dataclass(slots=True)
 class DemoCompactionConfig:
+    """demo 用 compaction の調整値。
+
+    compaction は「モデルに渡す会話履歴を小さくする処理」です。
+    会話が長くなると、毎回のモデル呼び出しに含める履歴も大きくなり、
+    トークン上限、コスト、応答時間の問題が出ます。この設定は、その問題を
+    どの程度まで許容し、どこから履歴を小さくするかを決めます。
+
+    Attributes:
+        token_budget: before_strategy が目標にする推定トークン数。
+            この値以下になったら、後続の圧縮戦略は原則として早期終了します。
+        keep_last_tool_call_groups: 圧縮せずに残す最新のツール呼び出しグループ数。
+            古いツール結果は短い要約メッセージへ折りたたまれます。
+        summary_target_count: 要約後もそのまま残す最新メッセージ数。
+        summary_threshold: 要約を始めるための余裕値。
+            対象メッセージ数が summary_target_count + summary_threshold を超えると、
+            古い部分が要約候補になります。
+        keep_last_groups: 最後に残す最新の非 system メッセージグループ数。
+            要約しても長い場合の強めの制限です。
+        ad_hoc_max_n: compact_messages で TruncationStrategy を開始する推定トークン数。
+        ad_hoc_compact_to: compact_messages が削減先として目標にする推定トークン数。
+    """
+
     token_budget: int = 16_000
     keep_last_tool_call_groups: int = 1
     summary_target_count: int = 4
@@ -28,17 +50,24 @@ class DemoCompactionConfig:
 
 
 class DemoCompactionProvider:
-    """app.py から利用する compaction 部品を組み立てる Factory。
+    """demo エージェント用の CompactionProvider を組み立てる Factory。
 
-    戦略の順序は Microsoft Learn の推奨構成に合わせる。
-    1. ToolResultCompactionStrategy
-       まず古いツール結果を圧縮する。情報欠落が最も少ないため、最初に適用する。
-    2. SummarizationStrategy
-       要約用クライアントがある場合、古い会話を要約に置き換える。
-    3. SlidingWindowStrategy
-       それでも長い場合、最新の会話グループだけを残す。
-    4. TruncationStrategy
-       ad-hoc compaction 用の最終手段として使う。
+    Agent Framework の compaction は、履歴そのものの意味をできるだけ残しながら、
+    モデルに渡すメッセージ量を減らす仕組みです。このクラスでは、Microsoft Learn の
+    Python 向け構成に合わせて、次の順序で戦略を組み立てます。
+
+    1. ToolResultCompactionStrategy:
+        古いツール呼び出し結果を短い要約メッセージへ折りたたみます。
+        ユーザー発話や通常のアシスタント応答を消さないため、最初に実行します。
+    2. SummarizationStrategy:
+        summarizer_client がある場合だけ、古い会話を LLM で要約します。
+        直近の会話はそのまま残し、古い文脈を短く保持します。
+    3. SlidingWindowStrategy:
+        それでも長い場合に、最新のメッセージグループだけを残します。
+        文脈保持よりもサイズ上限を優先する段階です。
+    4. TruncationStrategy:
+        compact_messages で使う ad-hoc 用の最終手段です。
+        条件を満たすまで古いグループを削除します。
     """
 
     def __init__(
@@ -61,10 +90,16 @@ class DemoCompactionProvider:
         print_gray(f"[compaction] {message}")
 
     def create_before_strategy(self) -> TokenBudgetComposedStrategy:
-        """各モデル呼び出しの前に使う compaction パイプラインを生成する。
+        """モデル呼び出し前に実行する compaction パイプラインを生成する。
 
-        まずツール結果を圧縮し、次に必要なら会話要約を行い、
-        最後にスライディングウィンドウで履歴サイズを制限する。
+        before_strategy は、今回の LLM 呼び出しに渡す直前の履歴を小さくします。
+        この demo では TokenBudgetComposedStrategy を使い、推定トークン数が
+        token_budget 以下になった時点で後続戦略を止めます。
+
+        実行順:
+            1. 古いツール結果を短くする。
+            2. summarizer_client があれば、古い会話を要約する。
+            3. 最新 keep_last_groups グループだけに制限する。
         """
         strategies: list[Any] = [
             ToolResultCompactionStrategy(
@@ -109,9 +144,11 @@ class DemoCompactionProvider:
         )
 
     def create_after_strategy(self) -> ToolResultCompactionStrategy:
-        """永続化済み履歴に対して実行後に使う戦略を生成する。
+        """モデル呼び出し後に、保存済み履歴へ適用する戦略を生成する。
 
-        次回ターン開始時の履歴を軽くするため、古いツール結果だけを圧縮する。
+        after_strategy は、今回の応答が終わって履歴へ保存された後に動きます。
+        ここでは会話本文は保ったまま、古いツール結果だけを折りたたみます。
+        これにより、次のターン開始時点の履歴サイズを小さくできます。
         """
         self._debug(
             "after_strategy: ToolResultCompactionStrategy を生成 "
@@ -122,7 +159,12 @@ class DemoCompactionProvider:
         )
 
     def create_provider(self) -> CompactionProvider:
-        """demo エージェントに注入する CompactionProvider を生成する。"""
+        """demo エージェントの context_providers に渡す CompactionProvider を生成する。
+
+        history_source_id は、どの履歴プロバイダーのメッセージを圧縮対象にするかを
+        Agent Framework に伝える識別子です。この demo では LocalHistoryProvider の
+        source_id を渡します。
+        """
         self._debug(
             "provider: CompactionProvider を生成 "
             f"(history_source_id={self._history_source_id})"
@@ -135,10 +177,15 @@ class DemoCompactionProvider:
         )
 
     async def compact_messages(self, messages: list[Message]) -> list[Message]:
-        """任意のメッセージ配列に対して アドホック compaction を実行する。
+        """任意のメッセージ配列に対して ad-hoc compaction を実行する。
 
-        ここでは最終手段として TruncationStrategy を使い、
-        サイズ条件を満たすまで古いグループを削る。
+        Agent の通常実行とは別に、手元の messages を直接小さくしたい場合に使います。
+        ここでは TruncationStrategy を使い、推定トークン数が ad_hoc_max_n を超えたら
+        古いグループから削除し、ad_hoc_compact_to 付近まで減らします。
+
+        注意:
+            TruncationStrategy は情報を要約せず削除します。会話の意味を残したい
+            通常ルートでは、create_before_strategy の段階的な圧縮を優先します。
         """
         self._debug(
             "ad_hoc: TruncationStrategy を実行 "
