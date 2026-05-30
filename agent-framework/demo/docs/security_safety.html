@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Microsoft Agent Framework：エージェント安全性・FIDES セキュリティ解説</title>
+    <style>
+        :root {
+            --bg: #f6f8fc;
+            --paper: #ffffff;
+            --ink: #172033;
+            --muted: #61708a;
+            --line: #dbe3f0;
+            --blue: #2563eb;
+            --cyan: #06b6d4;
+            --green: #16a34a;
+            --orange: #f97316;
+            --red: #dc2626;
+            --purple: #7c3aed;
+            --soft-blue: #eaf1ff;
+            --soft-green: #eaf8ef;
+            --soft-orange: #fff3e8;
+            --soft-red: #fff0f0;
+            --soft-purple: #f4efff;
+            --shadow: 0 18px 42px rgba(23, 32, 51, .10);
+            --radius: 22px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, #eef5ff 0%, var(--bg) 28%, #fbfcff 100%);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+            line-height: 1.75
+        }
+
+        a {
+            color: var(--blue);
+            text-decoration: none
+        }
+
+        a:hover {
+            text-decoration: underline
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 34px 22px 80px
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle at 18% 15%, #dff4ff 0 18%, transparent 34%), radial-gradient(circle at 84% 16%, #efe7ff 0 15%, transparent 32%), linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+            border: 1px solid var(--line);
+            border-radius: 32px;
+            padding: 48px;
+            box-shadow: var(--shadow)
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #bfd0ff;
+            background: #eef4ff;
+            color: #214aa5;
+            border-radius: 999px;
+            padding: 7px 13px;
+            font-weight: 700;
+            font-size: 13px
+        }
+
+        h1 {
+            font-size: 42px;
+            line-height: 1.2;
+            margin: 20px 0 12px;
+            letter-spacing: -.03em
+        }
+
+        h2 {
+            font-size: 28px;
+            margin: 56px 0 18px;
+            letter-spacing: -.02em
+        }
+
+        h3 {
+            font-size: 20px;
+            margin: 0 0 12px
+        }
+
+        .lead {
+            font-size: 18px;
+            color: #35445e;
+            max-width: 840px
+        }
+
+        .note {
+            color: var(--muted);
+            font-size: 14px
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px
+        }
+
+        .cols2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr))
+        }
+
+        .cols3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr))
+        }
+
+        .cols4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr))
+        }
+
+        .card {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: 0 10px 26px rgba(23, 32, 51, .06)
+        }
+
+        .card strong {
+            color: #111827
+        }
+
+        .pill {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 10px
+        }
+
+        .blue {
+            background: var(--soft-blue);
+            color: var(--blue)
+        }
+
+        .green {
+            background: var(--soft-green);
+            color: var(--green)
+        }
+
+        .orange {
+            background: var(--soft-orange);
+            color: var(--orange)
+        }
+
+        .red {
+            background: var(--soft-red);
+            color: var(--red)
+        }
+
+        .purple {
+            background: var(--soft-purple);
+            color: var(--purple)
+        }
+
+        .summary {
+            margin-top: 26px;
+            display: grid;
+            grid-template-columns: 1.2fr .8fr;
+            gap: 20px
+        }
+
+        .bigpoint {
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1.35;
+            margin: 0 0 12px
+        }
+
+        .callout {
+            border-left: 6px solid var(--blue);
+            background: #f4f8ff;
+            border-radius: 18px;
+            padding: 18px 20px
+        }
+
+        .warning {
+            border-left-color: var(--orange);
+            background: #fff7ed
+        }
+
+        .danger {
+            border-left-color: var(--red);
+            background: #fff5f5
+        }
+
+        .ok {
+            border-left-color: var(--green);
+            background: #f1fbf5
+        }
+
+        .figure {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin: 22px 0
+        }
+
+        .overview-figure {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 12px;
+            box-shadow: var(--shadow);
+            margin: 24px 0 0
+        }
+
+        .overview-figure img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 20px
+        }
+
+        .overview-figure figcaption {
+            color: var(--muted);
+            font-size: 13px;
+            margin: 10px 6px 0;
+            text-align: center
+        }
+
+        .caption {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 10px;
+            text-align: center
+        }
+
+        .svg {
+            width: 100%;
+            height: auto;
+            display: block
+        }
+
+        .tiny {
+            font-size: 12px;
+            fill: #50617c
+        }
+
+        .svgtitle {
+            font-size: 20px;
+            font-weight: 800;
+            fill: #172033
+        }
+
+        .svglab {
+            font-size: 15px;
+            font-weight: 800;
+            fill: #172033
+        }
+
+        .svgtext {
+            font-size: 13px;
+            fill: #4b5c76
+        }
+
+        .arrow {
+            stroke: #7890b5;
+            stroke-width: 2.5;
+            marker-end: url(#arrow)
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: #fff
+        }
+
+        th,
+        td {
+            padding: 14px 15px;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top
+        }
+
+        th {
+            background: #f4f7fc;
+            text-align: left;
+            font-size: 14px
+        }
+
+        tr:last-child td {
+            border-bottom: none
+        }
+
+        .check td:first-child {
+            font-weight: 800;
+            width: 28%
+        }
+
+        .road {
+            display: grid;
+            gap: 14px
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 46px 1fr;
+            gap: 13px;
+            align-items: start
+        }
+
+        .num {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: var(--blue);
+            color: white;
+            display: grid;
+            place-items: center;
+            font-weight: 900
+        }
+
+        .step .body {
+            background: white;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 16px
+        }
+
+        .badgood {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px
+        }
+
+        .bad {
+            border-top: 6px solid var(--red)
+        }
+
+        .good {
+            border-top: 6px solid var(--green)
+        }
+
+        .photo-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 18px
+        }
+
+        .photo {
+            height: 160px;
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            position: relative;
+            background: linear-gradient(135deg, #dbeafe, #f5f3ff)
+        }
+
+        .photo svg {
+            width: 100%;
+            height: 100%
+        }
+
+        .photo .label {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            background: rgba(255, 255, 255, .88);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-weight: 800;
+            font-size: 13px
+        }
+
+        .footer {
+            margin-top: 56px;
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .toc {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px
+        }
+
+        .toc a {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 8px 12px;
+            color: #29405f;
+            font-weight: 700;
+            font-size: 13px
+        }
+
+        .print-note {
+            background: #fff;
+            border: 1px dashed #afbdd2;
+            padding: 12px 15px;
+            border-radius: 14px;
+            margin-top: 20px;
+            color: #52637d;
+            font-size: 13px
+        }
+
+        @media(max-width:850px) {
+            .hero {
+                padding: 28px
+            }
+
+            .summary,
+            .cols2,
+            .cols3,
+            .cols4,
+            .badgood,
+            .photo-strip {
+                grid-template-columns: 1fr
+            }
+
+            h1 {
+                font-size: 31px
+            }
+
+            .bigpoint {
+                font-size: 23px
+            }
+        }
+
+        @media print {
+            body {
+                background: white
+            }
+
+            .wrap {
+                max-width: none;
+                padding: 18px
+            }
+
+            .card,
+            .figure,
+            .hero {
+                box-shadow: none
+            }
+
+            .toc,
+            .print-note {
+                display: none
+            }
+
+            h2 {
+                break-before: page
+            }
+
+            .hero+h2 {
+                break-before: auto
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <section class="hero">
+            <span class="badge">Microsoft Agent Framework / Safety & Security</span>
+            <h1>AIエージェントを安全に動かすための<br>基本ルールと FIDES の考え方</h1>
+            <p class="lead">この資料は、Microsoft Agent Framework の「Agent Safety」と「FIDES (フロー整合性決定論的強制システム) を使用したエージェント
+                セキュリティ」を、非エンジニアにも伝わる言葉でまとめた説明資料です。AIがツールを使って行動する時に、どこが危険で、どう防ぐべきかを図解します。</p>
+            <div class="toc">
+                <a href="#overview">全体像</a><a href="#risk">何が危険か</a><a href="#basic">基本対策</a><a
+                    href="#fides">FIDES</a><a href="#example">攻撃例</a><a href="#checklist">実装チェック</a>
+            </div>
+            <div class="summary">
+                <div class="callout ok">
+                    <p class="bigpoint">結論：AIの判断を信用しすぎず、<br>危険な操作は「実行前」に止める。</p>
+                    <p>Agent Framework はエージェントを作る部品を提供しますが、入力検証・データ保護・ツール権限設計は開発者側の責任です。FIDES
+                        はその中でも、信頼できないデータや機密情報が危険なツールへ流れるのをラベルで制御する仕組みです。</p>
+                </div>
+                <div class="card">
+                    <span class="pill purple">この資料で使うたとえ</span>
+                    <h3>AIエージェント = 新人担当者 + 業務ツール</h3>
+                    <p>新人担当者がメール・社内DB・GitHub・ファイル操作をできる状態だと、便利な一方で「だまされて送信する」「秘密を外に出す」リスクがあります。安全設計は、その新人に渡す権限・承認・持ち出し禁止ルールを決める作業です。
+                    </p>
+                </div>
+            </div>
+            <div class="print-note">ブラウザで開いてそのまま閲覧・印刷できます。外部画像に依存しないよう、図はHTML内のSVGで埋め込んでいます。</div>
+        </section>
+
+        <h2 id="overview">1. 全体像：安全対策は「基本ルール」と「FIDES」の2段構え</h2>
+        <div class="figure">
+            <svg class="svg" viewBox="0 0 1100 420" role="img" aria-label="Agent Framework safety overview">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#7890b5" />
+                    </marker>
+                </defs>
+                <rect x="25" y="35" width="220" height="110" rx="22" fill="#eaf1ff" stroke="#b9ccff" />
+                <text x="135" y="76" text-anchor="middle" class="svglab">ユーザー / 外部データ</text><text x="135" y="106"
+                    text-anchor="middle" class="svgtext">質問・メール・Issue・RAG文書</text>
+                <line x1="245" y1="90" x2="370" y2="90" class="arrow" />
+                <rect x="370" y="35" width="240" height="110" rx="22" fill="#f4efff" stroke="#d3c3ff" />
+                <text x="490" y="76" text-anchor="middle" class="svglab">AIエージェント</text><text x="490" y="106"
+                    text-anchor="middle" class="svgtext">読む・考える・ツールを選ぶ</text>
+                <line x1="610" y1="90" x2="735" y2="90" class="arrow" />
+                <rect x="735" y="35" width="330" height="110" rx="22" fill="#fff3e8" stroke="#ffd0a4" />
+                <text x="900" y="76" text-anchor="middle" class="svglab">ツール / 外部サービス</text><text x="900" y="106"
+                    text-anchor="middle" class="svgtext">DB更新・メール送信・ファイル操作</text>
+                <rect x="70" y="210" width="455" height="150" rx="24" fill="#ffffff" stroke="#dbe3f0" />
+                <text x="298" y="246" text-anchor="middle" class="svgtitle">基本ルール</text>
+                <text x="110" y="284" class="svgtext">• 入力を検証する</text><text x="110" y="312" class="svgtext">•
+                    危険なツールは人間承認にする</text><text x="110" y="340" class="svgtext">• ログやセッションの機密情報を守る</text>
+                <rect x="575" y="210" width="455" height="150" rx="24" fill="#ffffff" stroke="#dbe3f0" />
+                <text x="803" y="246" text-anchor="middle" class="svgtitle">FIDES</text>
+                <text x="615" y="284" class="svgtext">• データに「信頼度」「機密度」ラベルを付ける</text><text x="615" y="312"
+                    class="svgtext">• ラベルをツール呼び出しへ伝搬する</text><text x="615" y="340" class="svgtext">• 危険な実行は実行前にブロック /
+                    承認</text>
+                <line x1="298" y1="210" x2="298" y2="155" stroke="#16a34a" stroke-width="3" stroke-dasharray="8 8" />
+                <line x1="803" y1="210" x2="803" y2="155" stroke="#7c3aed" stroke-width="3" stroke-dasharray="8 8" />
+            </svg>
+            <div class="caption">通常の安全対策は「守るべき基本姿勢」、FIDES は「データの流れをラベルで強制制御する追加防御」。</div>
+        </div>
+
+        <div class="grid cols2">
+            <div class="card"><span class="pill green">基本対策</span>
+                <h3>安全なエージェント設計の土台</h3>
+                <p>ツール引数の検証、危険操作の承認、LLM出力の検証、ログの機密情報保護、レート制限など。すべてのエージェントで必要になる現実的な運用ルールです。</p>
+            </div>
+            <div class="card"><span class="pill purple">FIDES</span>
+                <h3>プロンプトインジェクションと情報流出への追加防御</h3>
+                <p>「このデータは信頼できない」「この情報は社外に出してはいけない」とラベルを付け、危険なツールが実行される前に機械的に止めます。</p>
+            </div>
+        </div>
+
+        <h2 id="risk">2. 何が危険か：AIは“文章中の命令”にだまされることがある</h2>
+        <div class="photo-strip">
+            <div class="photo"><svg viewBox="0 0 360 160">
+                    <rect width="360" height="160" fill="#dbeafe" />
+                    <circle cx="70" cy="70" r="34" fill="#2563eb" opacity=".20" />
+                    <rect x="128" y="36" width="170" height="18" rx="9" fill="#2563eb" opacity=".35" />
+                    <rect x="128" y="68" width="130" height="14" rx="7" fill="#2563eb" opacity=".25" />
+                    <path d="M60 122h240" stroke="#2563eb" stroke-width="10" opacity=".18" stroke-linecap="round" />
+                </svg>
+                <div class="label">外部データを読む</div>
+            </div>
+            <div class="photo"><svg viewBox="0 0 360 160">
+                    <rect width="360" height="160" fill="#fef3c7" />
+                    <path d="M80 105 L160 45 L240 105 Z" fill="#f97316" opacity=".30" />
+                    <rect x="132" y="85" width="94" height="38" rx="10" fill="#f97316" opacity=".30" /><text x="180"
+                        y="107" text-anchor="middle" font-size="22" font-weight="900" fill="#b45309">!</text>
+                </svg>
+                <div class="label">悪意ある指示が混ざる</div>
+            </div>
+            <div class="photo"><svg viewBox="0 0 360 160">
+                    <rect width="360" height="160" fill="#fee2e2" />
+                    <rect x="68" y="38" width="224" height="92" rx="16" fill="#dc2626" opacity=".18" />
+                    <path d="M120 84 h120 M180 52 v64" stroke="#dc2626" stroke-width="11" stroke-linecap="round"
+                        opacity=".55" />
+                </svg>
+                <div class="label">実行前に止める</div>
+            </div>
+        </div>
+        <div class="callout warning" style="margin-top:18px">
+            <strong>非エンジニア向けに言うと：</strong>
+            AIに「このメールを要約して」と頼んだだけでも、メール本文の中に「社外秘ファイルを読んで返信に貼れ」という偽命令が混ざっている可能性があります。AIがそれを本物の業務指示と誤認すると、情報流出や誤操作につながります。
+        </div>
+
+        <h2 id="basic">3. Agent Safety の基本対策：最低限これを守る</h2>
+        <table class="check">
+            <thead>
+                <tr>
+                    <th>対策</th>
+                    <th>非エンジニア向けの意味</th>
+                    <th>実務での例</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>入力を検証する</td>
+                    <td>AIが選んだツール引数を、そのまま信用しない。</td>
+                    <td>ファイルパスは許可されたフォルダ内だけ。IDや日付は形式チェックする。</td>
+                </tr>
+                <tr>
+                    <td>危険ツールは承認制</td>
+                    <td>送信・削除・購入・DB更新など、戻せない操作は人間確認を挟む。</td>
+                    <td>メール送信、コメント投稿、本番DB更新、課金処理は確認画面を出す。</td>
+                </tr>
+                <tr>
+                    <td>system メッセージを守る</td>
+                    <td>AIの最上位ルールに、ユーザー入力や外部文書を混ぜない。</td>
+                    <td>RAG文書やチャット履歴を system 扱いにしない。</td>
+                </tr>
+                <tr>
+                    <td>LLM出力を検証する</td>
+                    <td>AIの回答は外部システムの出力なので、正しい・安全とは限らない。</td>
+                    <td>HTML表示前にサニタイズ。SQLやシェルコマンドとして直接実行しない。</td>
+                </tr>
+                <tr>
+                    <td>ログを守る</td>
+                    <td>ログに会話全文や個人情報を残しすぎない。</td>
+                    <td>本番環境で Trace ログや機密データ付きテレメトリを有効化しない。</td>
+                </tr>
+                <tr>
+                    <td>セッションを守る</td>
+                    <td>会話履歴やセッション情報も機密データとして扱う。</td>
+                    <td>アクセス制御と暗号化されたストレージに保存する。</td>
+                </tr>
+                <tr>
+                    <td>リソース制限</td>
+                    <td>無限に長い入力・出力・大量アクセスを許さない。</td>
+                    <td>入力長、出力トークン、レート制限を設ける。</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="fides">4. FIDES：データにラベルを貼って、危険な流れを止める</h2>
+        <div class="figure">
+            <svg class="svg" viewBox="0 0 1100 500" role="img" aria-label="FIDES labels and policy enforcement">
+                <defs>
+                    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#7890b5" />
+                    </marker>
+                </defs>
+                <text x="550" y="42" text-anchor="middle" class="svgtitle">FIDES の考え方：荷物にラベルを貼り、出口でチェックする</text>
+                <rect x="50" y="85" width="220" height="130" rx="24" fill="#eaf1ff" stroke="#b9ccff" />
+                <text x="160" y="127" text-anchor="middle" class="svglab">データの入口</text><text x="160" y="157"
+                    text-anchor="middle" class="svgtext">メール / Issue / DB / RAG</text><text x="160" y="185"
+                    text-anchor="middle" class="svgtext">ここでラベル付け</text>
+                <line x1="270" y1="150" x2="390" y2="150" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow2)" />
+                <rect x="390" y="78" width="320" height="145" rx="24" fill="#f4efff" stroke="#d3c3ff" />
+                <text x="550" y="114" text-anchor="middle" class="svglab">ラベルが処理中もついて回る</text>
+                <rect x="430" y="138" width="110" height="34" rx="17" fill="#fff" stroke="#7c3aed" /><text x="485"
+                    y="160" text-anchor="middle" class="svgtext">信頼できない</text>
+                <rect x="560" y="138" width="110" height="34" rx="17" fill="#fff" stroke="#dc2626" /><text x="615"
+                    y="160" text-anchor="middle" class="svgtext">社外秘</text>
+                <text x="550" y="198" text-anchor="middle" class="svgtext">要約・分類・変換してもラベルを伝搬</text>
+                <line x1="710" y1="150" x2="830" y2="150" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow2)" />
+                <rect x="830" y="85" width="220" height="130" rx="24" fill="#fff3e8" stroke="#ffd0a4" />
+                <text x="940" y="127" text-anchor="middle" class="svglab">ツール実行前</text><text x="940" y="157"
+                    text-anchor="middle" class="svgtext">ポリシー確認</text><text x="940" y="185" text-anchor="middle"
+                    class="svgtext">許可 / 承認 / ブロック</text>
+                <rect x="90" y="290" width="270" height="120" rx="22" fill="#fff" stroke="#dbe3f0" />
+                <text x="225" y="325" text-anchor="middle" class="svglab">Integrity</text><text x="225" y="356"
+                    text-anchor="middle" class="svgtext">誰が作った情報か</text><text x="225" y="386" text-anchor="middle"
+                    class="svgtext">trusted / untrusted</text>
+                <rect x="415" y="290" width="270" height="120" rx="22" fill="#fff" stroke="#dbe3f0" />
+                <text x="550" y="325" text-anchor="middle" class="svglab">Confidentiality</text><text x="550" y="356"
+                    text-anchor="middle" class="svgtext">外に出してよい情報か</text><text x="550" y="386" text-anchor="middle"
+                    class="svgtext">public / private / user_identity</text>
+                <rect x="740" y="290" width="270" height="120" rx="22" fill="#fff" stroke="#dbe3f0" />
+                <text x="875" y="325" text-anchor="middle" class="svglab">Policy</text><text x="875" y="356"
+                    text-anchor="middle" class="svgtext">そのツールに渡してよいか</text><text x="875" y="386" text-anchor="middle"
+                    class="svgtext">実行前に機械的に判定</text>
+            </svg>
+            <div class="caption">FIDES は、AIの「気合い」ではなく、データラベルとポリシーで判断する。</div>
+        </div>
+        <div class="grid cols4">
+            <div class="card"><span class="pill blue">ContentLabel</span>
+                <h3>ラベル</h3>
+                <p>各データに、信頼度と機密度を持たせます。</p>
+            </div>
+            <div class="card"><span class="pill purple">Label Tracking</span>
+                <h3>追跡</h3>
+                <p>ツール呼び出しや変換後も、ラベルを引き継ぎます。</p>
+            </div>
+            <div class="card"><span class="pill orange">Policy Enforcement</span>
+                <h3>実行前チェック</h3>
+                <p>危険なツールを実行する前に、許可・承認・ブロックを判定します。</p>
+            </div>
+            <div class="card"><span class="pill green">Quarantine</span>
+                <h3>隔離</h3>
+                <p>信頼できない文章をメインAIに直接読ませず、隔離されたAIで処理できます。</p>
+            </div>
+        </div>
+
+        <h2 id="example">5. 攻撃例：公開コメントに秘密を貼らせる攻撃を止める</h2>
+        <div class="figure">
+            <svg class="svg" viewBox="0 0 1100 560" role="img" aria-label="Prompt injection example blocked by FIDES">
+                <defs>
+                    <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#7890b5" />
+                    </marker>
+                </defs>
+                <text x="550" y="38" text-anchor="middle" class="svgtitle">FIDES なし：AIが偽命令に従うと、秘密が外に出る</text>
+                <rect x="55" y="85" width="210" height="100" rx="20" fill="#eaf1ff" stroke="#b9ccff" /><text x="160"
+                    y="125" text-anchor="middle" class="svglab">公開Issue</text><text x="160" y="153" text-anchor="middle"
+                    class="svgtext">本文に偽SYSTEM命令</text>
+                <line x1="265" y1="135" x2="390" y2="135" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow3)" />
+                <rect x="390" y="85" width="210" height="100" rx="20" fill="#f4efff" stroke="#d3c3ff" /><text x="495"
+                    y="125" text-anchor="middle" class="svglab">AIが誤認</text><text x="495" y="153" text-anchor="middle"
+                    class="svgtext">秘密ファイルを読もうとする</text>
+                <line x1="600" y1="135" x2="725" y2="135" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow3)" />
+                <rect x="725" y="85" width="320" height="100" rx="20" fill="#fff0f0" stroke="#fecaca" /><text x="885"
+                    y="125" text-anchor="middle" class="svglab">危険</text><text x="885" y="153" text-anchor="middle"
+                    class="svgtext">.env を公開コメントへ投稿</text>
+                <text x="550" y="265" text-anchor="middle" class="svgtitle">FIDES あり：ラベルとポリシーで実行前に止める</text>
+                <rect x="55" y="315" width="210" height="120" rx="20" fill="#eaf1ff" stroke="#b9ccff" /><text x="160"
+                    y="350" text-anchor="middle" class="svglab">read_issue</text><text x="160" y="380"
+                    text-anchor="middle" class="svgtext">untrusted + public</text><text x="160" y="407"
+                    text-anchor="middle" class="svgtext">信頼できない入力</text>
+                <line x1="265" y1="375" x2="390" y2="375" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow3)" />
+                <rect x="390" y="315" width="210" height="120" rx="20" fill="#f4efff" stroke="#d3c3ff" /><text x="495"
+                    y="350" text-anchor="middle" class="svglab">read_file</text><text x="495" y="380"
+                    text-anchor="middle" class="svgtext">trusted + private</text><text x="495" y="407"
+                    text-anchor="middle" class="svgtext">社外秘が混ざる</text>
+                <line x1="600" y1="375" x2="725" y2="375" stroke="#7890b5" stroke-width="2.5"
+                    marker-end="url(#arrow3)" />
+                <rect x="725" y="315" width="320" height="120" rx="20" fill="#f1fbf5" stroke="#bbf7d0" /><text x="885"
+                    y="350" text-anchor="middle" class="svglab">post_comment 前に停止</text><text x="885" y="380"
+                    text-anchor="middle" class="svgtext">public しか出せないツールに</text><text x="885" y="407"
+                    text-anchor="middle" class="svgtext">private 情報は渡せない</text>
+                <rect x="760" y="456" width="250" height="50" rx="25" fill="#16a34a" /><text x="885" y="488"
+                    text-anchor="middle" font-size="16" font-weight="900" fill="white">実行前ブロック / 承認要求</text>
+            </svg>
+            <div class="caption">ポイントは、AIが攻撃に気づけなくても、フレームワーク側のポリシーで止めること。</div>
+        </div>
+
+        <h2>6. auto_hide_untrusted：怪しい文章をメインAIに直接読ませない選択肢</h2>
+        <div class="grid cols2">
+            <div class="card"><span class="pill green">True / 既定値</span>
+                <h3>強い防御</h3>
+                <p>信頼できない文章の中身を、メインAIには直接見せません。代わりに <strong>var_&lt;id&gt;</strong>
+                    のような参照に置き換え、必要な処理は隔離されたLLMで行います。攻撃文を読まないため、だまされにくい構造です。</p>
+            </div>
+            <div class="card"><span class="pill orange">False</span>
+                <h3>デバッグしやすいが慎重に使う</h3>
+                <p>信頼できない文章をメインAIが直接読みます。ただしラベルは残るため、危険ツールの実行前チェックはできます。検証やチュートリアルでは扱いやすい一方、本番ではリスク評価が必要です。</p>
+            </div>
+        </div>
+
+        <h2 id="checklist">7. 実装・設計チェックリスト</h2>
+        <div class="road">
+            <div class="step">
+                <div class="num">1</div>
+                <div class="body"><strong>エージェントが読むデータの出所を分類する。</strong><br>社内DB、ユーザー入力、メール、RAG文書、外部APIなどを「信頼できる /
+                    信頼できない」「公開 / 社内秘 / 個人情報」に分ける。</div>
+            </div>
+            <div class="step">
+                <div class="num">2</div>
+                <div class="body"><strong>ツールを読み取り系と変更系に分ける。</strong><br>検索・参照は比較的低リスク。送信・削除・更新・課金・本番操作は高リスクとして扱う。</div>
+            </div>
+            <div class="step">
+                <div class="num">3</div>
+                <div class="body"><strong>高リスクツールに承認を付ける。</strong><br>人間が「何を、どこに、どの内容で実行するか」を確認できるUIにする。</div>
+            </div>
+            <div class="step">
+                <div class="num">4</div>
+                <div class="body"><strong>FIDES を使う場合は、データソースとシンクツールにラベル・ポリシーを付ける。</strong><br>例：公開コメント投稿ツールは public
+                    まで、ファイル書き込みツールは untrusted を受け付けない。</div>
+            </div>
+            <div class="step">
+                <div class="num">5</div>
+                <div class="body"><strong>まずはドライランや承認モードで運用確認する。</strong><br>いきなり全ブロックではなく、何が止まるかを監査ログで見て、誤検知を調整する。
+                </div>
+            </div>
+            <div class="step">
+                <div class="num">6</div>
+                <div class="body"><strong>ログ・セッション・テレメトリの機密情報を抑制する。</strong><br>本番では Trace
+                    ログや機密データ付きテレメトリを避ける。セッションはアクセス制御・暗号化されたストレージへ。</div>
+            </div>
+        </div>
+
+        <h2>8. バッドプラクティス / ベストプラクティス</h2>
+        <div class="badgood">
+            <div class="card bad">
+                <h3>避けるべき設計</h3>
+                <ul>
+                    <li>AIが選んだ引数をそのまま本番ツールに渡す</li>
+                    <li>メール送信・DB更新・削除を承認なしで実行する</li>
+                    <li>外部文書やRAG結果を system メッセージに混ぜる</li>
+                    <li>LLM出力をHTMLやSQLとして直接使う</li>
+                    <li>会話全文やPIIを本番ログに残す</li>
+                    <li>「プロンプトで注意書きしたから安全」と考える</li>
+                </ul>
+            </div>
+            <div class="card good">
+                <h3>推奨設計</h3>
+                <ul>
+                    <li>入力は許可リストで検証する</li>
+                    <li>副作用のあるツールは人間承認にする</li>
+                    <li>外部入力・ツール結果・LLM出力は信頼しない</li>
+                    <li>出力は表示・実行前にサニタイズする</li>
+                    <li>リソース制限とレート制限を設ける</li>
+                    <li>FIDESで信頼度・機密度ラベルを伝搬させる</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>9. 使い分けの目安</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>状況</th>
+                    <th>推奨</th>
+                    <th>理由</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>社内の信頼済みデータだけを読む簡単なQ&A</td>
+                    <td>基本対策中心</td>
+                    <td>高リスクツールがないなら、まずは入力検証・出力検証・ログ保護で十分な場合がある。</td>
+                </tr>
+                <tr>
+                    <td>メール、Issue、Web、RAG文書など外部入力を読む</td>
+                    <td>FIDES 検討</td>
+                    <td>間接プロンプトインジェクションが混ざる可能性がある。</td>
+                </tr>
+                <tr>
+                    <td>メール送信、コメント投稿、ファイル書き込み、本番更新を行う</td>
+                    <td>承認 + FIDES</td>
+                    <td>誤操作や情報流出が実害になるため、実行前に止める仕組みが必要。</td>
+                </tr>
+                <tr>
+                    <td>個人情報・資格情報・社外秘を扱う</td>
+                    <td>FIDES + ログ抑制 + アクセス制御</td>
+                    <td>「どの情報をどこへ出してよいか」を機械的に制御する必要がある。</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>10. ひとことで説明するなら</h2>
+        <div class="callout ok">
+            <p class="bigpoint">Agent Framework の安全設計は、AIに自由を与える前に、<br>「見てよいもの」「実行してよいこと」「外に出してよい情報」を決めること。</p>
+            <p>通常の安全対策は、入力検証・承認・ログ保護などの基本ルールです。FIDES はさらに一歩進み、データにラベルを貼って、危険なツール実行や情報流出を実行前に止めます。</p>
+        </div>
+
+        <section class="footer">
+            <h2>参考資料</h2>
+            <ol>
+                <li>Microsoft Learn: FIDES を使用したエージェント セキュリティ —
+                    https://learn.microsoft.com/ja-jp/agent-framework/agents/security?pivots=programming-language-python
+                </li>
+                <li>Microsoft Learn: エージェントの安全性 — https://learn.microsoft.com/ja-jp/agent-framework/agents/safety</li>
+            </ol>
+            <p>作成日：2026-05-30。Microsoft Learn の該当ページ内容をもとに、非エンジニア向け説明として再構成。</p>
+        </section>
+    </div>
+</body>
+
+</html>

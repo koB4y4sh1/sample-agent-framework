@@ -1,39 +1,51 @@
 <!doctype html>
 <html lang="ja">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Agent Framework の compaction 図解</title>
+  <title>Microsoft Agent Framework Compaction 解説資料</title>
   <style>
     :root {
       color-scheme: light dark;
       --bg: #ffffff;
       --text: #1f2328;
-      --muted: #59636e;
-      --surface: #f6f8fa;
-      --surface-strong: #eef2f6;
-      --border: #d0d7de;
-      --accent: #0969da;
-      --accent-bg: #ddf4ff;
-      --warning: #9a6700;
-      --warning-bg: #fff8c5;
-      --code-bg: #eff2f5;
-      --shadow: 0 8px 24px rgb(140 149 159 / 18%);
+      --muted: #667085;
+      --surface: #f6f8fb;
+      --surface-strong: #eef4ff;
+      --border: #d7dee8;
+      --accent: #2563eb;
+      --accent-2: #7c3aed;
+      --accent-bg: #eaf2ff;
+      --ok: #138a36;
+      --ok-bg: #e8f8ed;
+      --warn: #a15c00;
+      --warn-bg: #fff4d6;
+      --danger: #c62828;
+      --danger-bg: #ffebee;
+      --code-bg: #eef2f6;
+      --shadow: 0 14px 36px rgba(31, 41, 55, 0.12);
+      --radius: 18px;
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0d1117;
-        --text: #e6edf3;
-        --muted: #8b949e;
-        --surface: #161b22;
-        --surface-strong: #21262d;
-        --border: #30363d;
-        --accent: #58a6ff;
-        --accent-bg: #0d2742;
-        --warning: #d29922;
-        --warning-bg: #342a00;
-        --code-bg: #1f242c;
+        --bg: #0b1020;
+        --text: #eef2ff;
+        --muted: #a5b4c9;
+        --surface: #111827;
+        --surface-strong: #172033;
+        --border: #2f3a4f;
+        --accent: #60a5fa;
+        --accent-2: #a78bfa;
+        --accent-bg: #0f2747;
+        --ok: #4ade80;
+        --ok-bg: #0d2b1a;
+        --warn: #fbbf24;
+        --warn-bg: #332400;
+        --danger: #f87171;
+        --danger-bg: #3f1014;
+        --code-bg: #1f2937;
         --shadow: none;
       }
     }
@@ -42,33 +54,43 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, .18), transparent 28%),
+        radial-gradient(circle at 92% 2%, rgba(124, 58, 237, .16), transparent 26%),
+        var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.65;
+      line-height: 1.75;
     }
 
     main {
-      width: min(1120px, calc(100% - 32px));
+      width: min(1180px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 32px 0 56px;
+      padding: 34px 0 64px;
     }
 
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(1.9rem, 4vw, 3rem);
-      line-height: 1.2;
-      letter-spacing: 0;
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.12;
+      letter-spacing: -0.04em;
     }
 
     h2 {
-      margin: 40px 0 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-      font-size: 1.35rem;
-      letter-spacing: 0;
+      margin: 54px 0 18px;
+      font-size: clamp(1.35rem, 2vw, 1.8rem);
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1.08rem;
     }
 
     p {
@@ -80,60 +102,112 @@
     }
 
     code {
-      padding: 0.15em 0.35em;
-      border-radius: 4px;
+      padding: .15em .42em;
+      border-radius: 7px;
       background: var(--code-bg);
-      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-      font-size: 0.92em;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: .92em;
     }
 
     table {
       width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0;
-      overflow-wrap: anywhere;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
     }
 
     th,
     td {
-      padding: 10px 12px;
-      border: 1px solid var(--border);
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border);
       text-align: left;
       vertical-align: top;
     }
 
     th {
-      background: var(--surface);
+      background: var(--surface-strong);
+      font-size: .95rem;
     }
 
-    .hero,
-    .card,
-    .diagram-panel {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    ul,
+    ol {
+      margin-top: 8px;
+      padding-left: 1.3rem;
+    }
+
+    li {
+      margin: 6px 0;
     }
 
     .hero {
-      padding: 20px;
-      margin: 20px 0 18px;
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 24px;
+      align-items: center;
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, .12), rgba(124, 58, 237, .08)), var(--surface);
+      box-shadow: var(--shadow);
     }
 
     .lead {
       color: var(--muted);
-      font-size: 1.05rem;
+      font-size: 1.08rem;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+      font-size: .92rem;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
       gap: 14px;
-      margin: 16px 0;
     }
 
-    .card {
-      padding: 16px;
+    .grid.two {
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    }
+
+    .card,
+    .diagram,
+    .note,
+    .warn,
+    .danger,
+    .ok,
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .card,
+    .diagram,
+    .panel {
+      padding: 18px;
     }
 
     .card strong {
@@ -141,227 +215,718 @@
       margin-bottom: 8px;
     }
 
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
     .note,
-    .warning {
+    .warn,
+    .danger,
+    .ok {
+      padding: 15px 17px;
       margin: 16px 0;
-      padding: 14px 16px;
-      border-radius: 8px;
+      box-shadow: none;
     }
 
     .note {
-      border-left: 4px solid var(--accent);
+      background: var(--accent-bg);
+      border-left: 5px solid var(--accent);
+    }
+
+    .warn {
+      background: var(--warn-bg);
+      border-left: 5px solid var(--warn);
+    }
+
+    .danger {
+      background: var(--danger-bg);
+      border-left: 5px solid var(--danger);
+    }
+
+    .ok {
+      background: var(--ok-bg);
+      border-left: 5px solid var(--ok);
+    }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .piece {
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--bg);
+      font-size: .94rem;
+    }
+
+    .piece.keep {
+      border-color: rgba(19, 138, 54, .55);
+      background: var(--ok-bg);
+    }
+
+    .piece.compress {
+      border-color: rgba(37, 99, 235, .55);
       background: var(--accent-bg);
     }
 
-    .warning {
-      border-left: 4px solid var(--warning);
-      background: var(--warning-bg);
+    .piece.drop {
+      border-color: rgba(198, 40, 40, .55);
+      background: var(--danger-bg);
     }
 
-    .diagram-panel {
-      margin: 16px 0;
-      padding: 16px;
-      overflow-x: auto;
+    .piece.warn {
+      border-color: rgba(161, 92, 0, .55);
+      background: var(--warn-bg);
     }
 
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
-      margin: 12px 0 0;
-      color: var(--muted);
-      font-size: 0.95rem;
+      align-items: stretch;
     }
 
-    .legend span {
-      padding: 4px 8px;
+    .flow3 {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 1.15rem;
+    }
+
+    .box {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: var(--bg);
+      min-height: 128px;
+    }
+
+    .box .icon {
+      font-size: 1.7rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .caption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .93rem;
+    }
+
+    .meter {
+      overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--surface-strong);
+      margin-top: 10px;
     }
 
-    .refs {
-      padding-left: 1.2rem;
+    .fill {
+      padding: 6px 10px;
+      color: #fff;
+      white-space: nowrap;
+      font-size: .88rem;
+    }
+
+    .fill.bad {
+      width: 92%;
+      background: var(--danger);
+    }
+
+    .fill.good {
+      width: 48%;
+      background: var(--ok);
+    }
+
+    .conversation {
+      display: grid;
+      gap: 10px;
+    }
+
+    .turn {
+      display: grid;
+      grid-template-columns: 94px 1fr;
+      gap: 8px;
+    }
+
+    .label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface-strong);
+      color: var(--muted);
+      font-size: .88rem;
+      text-align: center;
+    }
+
+    .svg-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .rank {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .num {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .source {
+      margin-top: 44px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 820px) {
+
+      .hero,
+      .flow,
+      .flow3 {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+        min-height: 28px;
+      }
+
+      .turn {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
   <main>
-    <h1>Agent Framework の compaction 図解</h1>
-
     <section class="hero">
-      <p><strong>結論:</strong> compaction は、長くなった会話履歴をそのまま全部モデルへ渡さず、重要な文脈を残しながら小さくする処理です。</p>
-      <p class="lead">この demo では <code>src/agent/compaction.py</code> で <code>CompactionProvider</code> を作り、<code>DemoAgent</code> の <code>context_providers</code> に登録しています。</p>
+      <div>
+        <p class="pill">Microsoft Agent Framework</p>
+        <h1>Compaction を<br>「会話履歴の整理術」として理解する</h1>
+        <p class="lead">Compaction は、長くなった会話をそのまま捨てる機能ではありません。モデルに渡す情報量を抑えながら、必要な文脈を残すための<strong>段階的な圧縮設計</strong>です。
+        </p>
+        <div class="pill-row">
+          <span class="pill">💬 会話履歴を軽量化</span>
+          <span class="pill">🧰 ツール結果を短縮</span>
+          <span class="pill">📝 古い会話を要約</span>
+          <span class="pill">🪟 最新の履歴だけ保持</span>
+        </div>
+      </div>
+      <div class="svg-wrap" aria-label="Compaction overview illustration">
+        <svg viewBox="0 0 430 320" role="img">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0" stop-color="#2563eb" />
+              <stop offset="1" stop-color="#7c3aed" />
+            </linearGradient>
+          </defs>
+          <rect x="20" y="25" width="180" height="230" rx="22" fill="var(--bg)" stroke="var(--border)" />
+          <rect x="45" y="55" width="130" height="22" rx="8" fill="var(--danger-bg)" stroke="var(--border)" />
+          <rect x="45" y="88" width="130" height="22" rx="8" fill="var(--warn-bg)" stroke="var(--border)" />
+          <rect x="45" y="121" width="130" height="22" rx="8" fill="var(--warn-bg)" stroke="var(--border)" />
+          <rect x="45" y="154" width="130" height="22" rx="8" fill="var(--accent-bg)" stroke="var(--border)" />
+          <rect x="45" y="187" width="130" height="22" rx="8" fill="var(--ok-bg)" stroke="var(--border)" />
+          <text x="110" y="240" text-anchor="middle" fill="var(--muted)" font-size="15">長い履歴</text>
+          <path d="M214 140 C252 140 248 140 286 140" stroke="url(#g)" stroke-width="8" fill="none"
+            stroke-linecap="round" />
+          <path d="M278 124 L304 140 L278 156" fill="none" stroke="url(#g)" stroke-width="8" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <circle cx="255" cy="98" r="34" fill="url(#g)" opacity=".95" />
+          <text x="255" y="106" text-anchor="middle" fill="white" font-size="28">圧縮</text>
+          <rect x="308" y="66" width="100" height="148" rx="22" fill="var(--bg)" stroke="var(--border)" />
+          <rect x="331" y="92" width="54" height="20" rx="8" fill="var(--accent-bg)" stroke="var(--border)" />
+          <rect x="331" y="123" width="54" height="20" rx="8" fill="var(--ok-bg)" stroke="var(--border)" />
+          <rect x="331" y="154" width="54" height="20" rx="8" fill="var(--surface-strong)" stroke="var(--border)" />
+          <text x="358" y="245" text-anchor="middle" fill="var(--muted)" font-size="15">軽い文脈</text>
+        </svg>
+      </div>
     </section>
 
-    <h2>なぜ必要か</h2>
-    <div class="grid">
-      <div class="card">
-        <strong>上限超過</strong>
-        <p>履歴が増えると、モデルのコンテキスト上限を超える可能性があります。</p>
+    <nav class="toc" aria-label="目次">
+      <a href="#why">1. なぜ必要か</a>
+      <a href="#scope">2. 使える対象</a>
+      <a href="#concept">3. 重要概念</a>
+      <a href="#strategies">4. 戦略の選び方</a>
+      <a href="#implementation">5. 実装パターン</a>
+      <a href="#practice">6. 設計判断</a>
+    </nav>
+
+    <div class="ok">
+      <strong>最初に伝えるべき結論</strong>
+      <p>Agent Framework の Compaction
+        は、<strong>古い履歴を「短くする・要約する・最後に削る」ための仕組み</strong>です。おすすめは、まずツール結果を軽くし、次に古い会話を要約し、それでも大きい場合だけ最新履歴に絞る順番です。</p>
+    </div>
+
+    <section id="why">
+      <h2>1. なぜ Compaction が必要なのか</h2>
+      <p>Agent は、毎回「最新の質問だけ」をモデルに渡すわけではありません。実際には、システム指示、会話履歴、ツール定義、ツール結果、今回の入力などをまとめて渡します。会話が長くなるほど、この入力が肥大化します。</p>
+      <div class="grid">
+        <div class="card"><strong>🚧 上限に当たる</strong>
+          <p>モデルには一度に読める量の上限があります。履歴が大きすぎると、処理できなくなります。</p>
+        </div>
+        <div class="card"><strong>💰 コストが増える</strong>
+          <p>毎回すべての履歴を送ると、入力トークンが増え、API費用が膨らみます。</p>
+        </div>
+        <div class="card"><strong>🐢 遅くなる</strong>
+          <p>読む情報が多いほど、モデル応答までの待ち時間が増えやすくなります。</p>
+        </div>
+        <div class="card"><strong>🎯 重要情報が埋もれる</strong>
+          <p>古い話題や巨大なツール結果が残ると、今の質問に不要な情報がノイズになります。</p>
+        </div>
       </div>
-      <div class="card">
-        <strong>コスト増加</strong>
-        <p>入力トークンが増えるほど、API コストも増えます。</p>
+
+      <div class="diagram">
+        <h3>圧縮なし / 圧縮ありの違い</h3>
+        <div class="grid two">
+          <div>
+            <strong>圧縮しない場合</strong>
+            <div class="conversation">
+              <div class="turn">
+                <div class="label">古い会話</div>
+                <div class="stack">
+                  <div class="piece warn">過去の相談が全文で残る</div>
+                </div>
+              </div>
+              <div class="turn">
+                <div class="label">ツール結果</div>
+                <div class="stack">
+                  <div class="piece warn">検索結果やAPI応答が長いまま残る</div>
+                </div>
+              </div>
+              <div class="turn">
+                <div class="label">現在</div>
+                <div class="stack">
+                  <div class="piece drop">入力上限・コスト・遅延の問題が起きる</div>
+                </div>
+              </div>
+            </div>
+            <div class="meter">
+              <div class="fill bad">履歴サイズ 92%</div>
+            </div>
+          </div>
+          <div>
+            <strong>圧縮する場合</strong>
+            <div class="conversation">
+              <div class="turn">
+                <div class="label">古い会話</div>
+                <div class="stack">
+                  <div class="piece compress">要点だけに要約する</div>
+                </div>
+              </div>
+              <div class="turn">
+                <div class="label">ツール結果</div>
+                <div class="stack">
+                  <div class="piece compress">古い結果を短い説明に折りたたむ</div>
+                </div>
+              </div>
+              <div class="turn">
+                <div class="label">現在</div>
+                <div class="stack">
+                  <div class="piece keep">直近のやり取りは残す</div>
+                </div>
+              </div>
+            </div>
+            <div class="meter">
+              <div class="fill good">履歴サイズ 48%</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <strong>応答遅延</strong>
-        <p>モデルへ渡す入力が大きいほど、応答時間が長くなります。</p>
+    </section>
+
+    <section id="scope">
+      <h2>2. Compaction が効く対象 / 効かない対象</h2>
+      <div class="note">
+        <strong>重要: メモリ内履歴を自前管理する Agent 向け</strong>
+        <p>Compaction は、Agent が自分でメモリ内のメッセージリストを保持し、各呼び出しで完全な履歴をモデルへ渡す場合に効果があります。</p>
       </div>
-    </div>
-
-    <h2>この demo の全体像</h2>
-    <div class="diagram-panel">
-      <pre class="mermaid">
-flowchart TD
-    User[ユーザー入力] --> Agent[DemoAgent]
-    Agent --> Providers[context_providers]
-    Providers --> History[LocalHistoryProvider<br/>会話履歴を読む]
-    Providers --> Convert[MessageConversionContextProvider<br/>プロバイダー向けに変換]
-    Providers --> Memory[UserProfileContextProvider<br/>ユーザー情報を補足]
-    Providers --> Skills[SkillsProvider<br/>スキルを補足]
-    Providers --> Compact[CompactionProvider<br/>履歴を小さくする]
-    Compact --> Model[LLM 呼び出し]
-    Model --> Response[応答]
-    Response --> After[after_strategy<br/>保存済み履歴を軽くする]
-      </pre>
-    </div>
-    <div class="note">
-      <code>history_source_id</code> は、どの履歴プロバイダーのメッセージを圧縮対象にするかを Agent Framework に伝える識別子です。この demo では <code>LocalHistoryProvider.source_id</code> を渡します。
-    </div>
-
-    <h2>before_strategy と after_strategy</h2>
-    <div class="diagram-panel">
-      <pre class="mermaid">
-sequenceDiagram
-    participant A as Agent
-    participant H as LocalHistoryProvider
-    participant C as CompactionProvider
-    participant M as LLM
-
-    A->>H: 保存済み履歴を取得
-    A->>C: before_strategy を適用
-    C-->>A: 今回モデルへ渡す履歴を小さくする
-    A->>M: 圧縮後の履歴で呼び出し
-    M-->>A: 応答
-    A->>H: 新しい会話を保存
-    A->>C: after_strategy を適用
-    C-->>H: 次回用に保存済み履歴を軽くする
-      </pre>
-    </div>
-
-    <table>
-      <thead>
-        <tr><th>種類</th><th>実行タイミング</th><th>目的</th><th>この demo の実装</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>before_strategy</code></td><td>モデル呼び出し前</td><td>今回モデルに渡す履歴を小さくする</td><td>ツール結果圧縮、要約、スライディングウィンドウ</td></tr>
-        <tr><td><code>after_strategy</code></td><td>モデル呼び出し後</td><td>次回ターン開始時の履歴を軽くする</td><td>古いツール結果だけ圧縮</td></tr>
-        <tr><td><code>compact_messages</code></td><td>任意のタイミング</td><td>手元のメッセージ配列を直接小さくする</td><td>古いグループを削除</td></tr>
-      </tbody>
-    </table>
-
-    <h2>before_strategy の処理順</h2>
-    <div class="diagram-panel">
-      <pre class="mermaid">
-flowchart LR
-    Start[会話履歴] --> Budget{token_budget<br/>以内?}
-    Budget -- はい --> Done[そのまま使う]
-    Budget -- いいえ --> Tool[1. ToolResultCompactionStrategy<br/>古いツール結果を短くする]
-    Tool --> Budget2{token_budget<br/>以内?}
-    Budget2 -- はい --> Done
-    Budget2 -- いいえ --> Summary[2. SummarizationStrategy<br/>古い会話を要約する]
-    Summary --> Budget3{token_budget<br/>以内?}
-    Budget3 -- はい --> Done
-    Budget3 -- いいえ --> Window[3. SlidingWindowStrategy<br/>最新グループだけ残す]
-    Window --> Done
-      </pre>
-    </div>
-    <div class="card">
-      <strong>TokenBudgetComposedStrategy の役割</strong>
-      <p>複数の戦略を順番に実行します。推定トークン数が <code>token_budget</code> 以下になれば、そこで後続戦略を止めます。</p>
-    </div>
-
-    <h2>各戦略の意味</h2>
-    <table>
-      <thead>
-        <tr><th>戦略</th><th>何をするか</th><th>情報の残りやすさ</th><th>LLM が必要か</th><th>この demo での用途</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>ToolResultCompactionStrategy</code></td><td>古いツール結果を短い要約メッセージにする</td><td>高い</td><td>不要</td><td>最初に実行する軽い圧縮</td></tr>
-        <tr><td><code>SummarizationStrategy</code></td><td>古い会話を LLM で要約する</td><td>中程度</td><td>必要</td><td>長い会話の文脈を短く残す</td></tr>
-        <tr><td><code>SlidingWindowStrategy</code></td><td>最新のメッセージグループだけ残す</td><td>低い</td><td>不要</td><td>それでも長い場合の強めの制限</td></tr>
-        <tr><td><code>TruncationStrategy</code></td><td>古いグループを削除する</td><td>低い</td><td>不要</td><td>ad-hoc compaction の最終手段</td></tr>
-      </tbody>
-    </table>
-
-    <h2>メッセージグループ</h2>
-    <p>Agent Framework の compaction は、単純に 1 メッセージずつ削るのではなく、関連メッセージをグループとして扱います。</p>
-    <div class="diagram-panel">
-      <pre class="mermaid">
-flowchart TD
-    S[system<br/>常に保護される]
-    U[user<br/>ユーザー発話]
-    A[assistant_text<br/>通常の回答]
-    T[tool_call<br/>ツール呼び出し + ツール結果]
-    Sum[summary<br/>要約で作られたメッセージ]
-      </pre>
-    </div>
-    <div class="warning">
-      <code>tool_call</code> は、ツール呼び出しとツール結果が対応しています。片方だけ削ると LLM API の入力として不整合になるため、まとめて扱います。
-    </div>
-
-    <h2>設定値の読み方</h2>
-    <table>
-      <thead>
-        <tr><th>設定</th><th>既定値</th><th>意味</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>token_budget</code></td><td><code>16_000</code></td><td>before_strategy が目標にする推定トークン数</td></tr>
-        <tr><td><code>keep_last_tool_call_groups</code></td><td><code>1</code></td><td>最新いくつのツール呼び出しグループを完全な形で残すか</td></tr>
-        <tr><td><code>summary_target_count</code></td><td><code>4</code></td><td>要約後もそのまま残す最新メッセージ数</td></tr>
-        <tr><td><code>summary_threshold</code></td><td><code>2</code></td><td>要約を始めるまでの余裕値</td></tr>
-        <tr><td><code>keep_last_groups</code></td><td><code>20</code></td><td>最終的に残す最新の非 system グループ数</td></tr>
-        <tr><td><code>ad_hoc_max_n</code></td><td><code>8_000</code></td><td>ad-hoc 圧縮を始める推定トークン数</td></tr>
-        <tr><td><code>ad_hoc_compact_to</code></td><td><code>4_000</code></td><td>ad-hoc 圧縮後の目標推定トークン数</td></tr>
-      </tbody>
-    </table>
-
-    <h2>実装上の注意</h2>
-    <div class="grid">
-      <div class="card">
-        <strong>トークン数は概算</strong>
-        <p><code>CharacterEstimatorTokenizer</code> は 4 文字を 1 トークン相当とみなします。モデル固有の正確なトークン数ではありません。</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>✅ 効果がある</h3>
+          <ul>
+            <li><code>InMemoryHistoryProvider</code> などで履歴を持つ Agent</li>
+            <li>ツール結果や検索結果を会話履歴に残す Agent</li>
+            <li>長期対話・調査・サポート用途の Agent</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>⚠️ 効果が薄い / ない</h3>
+          <ul>
+            <li>Foundry Agents のようにサービス側がコンテキストを管理する場合</li>
+            <li>Responses API の store 有効時など、会話状態をサービス側が管理する場合</li>
+            <li>Copilot Studio のように会話コンテキストをサービス側が維持する場合</li>
+          </ul>
+        </div>
       </div>
-      <div class="card">
-        <strong>要約には LLM が必要</strong>
-        <p><code>SummarizationStrategy</code> は要約用 LLM クライアントが必要です。この demo では <code>DemoApplication</code> が <code>haiku_client</code> を渡しています。</p>
+      <div class="warn">
+        <strong>Python 版の注意</strong>
+        <p>Compaction Framework は Python では試験段階です。戦略は <code>agent_framework._compaction</code> から import
+          します。実運用では、バージョン変更に備えてラップ層を置く設計が安全です。</p>
       </div>
-      <div class="card">
-        <strong>TruncationStrategy は削除</strong>
-        <p><code>TruncationStrategy</code> は要約せずに古い情報を削除します。通常の会話では、先にツール結果圧縮と要約を使う構成が妥当です。</p>
-      </div>
-      <div class="card">
-        <strong>API は試験段階</strong>
-        <p>Microsoft Learn では、Python の compaction 戦略は <code>agent_framework._compaction</code> から import する試験段階 API と説明されています。</p>
-      </div>
-    </div>
+    </section>
 
-    <h2>参照</h2>
-    <ul class="refs">
-      <li><a href="https://learn.microsoft.com/ja-jp/agent-framework/agents/conversations/compaction?pivots=programming-language-csharp">Microsoft Learn: Agent Framework compaction</a></li>
-      <li>実装: <code>src/agent/compaction.py</code></li>
-      <li>登録箇所: <code>src/app.py</code>, <code>src/agent/agents.py</code></li>
-    </ul>
+    <section id="concept">
+      <h2>3. 重要概念: MessageGroup / Trigger / Target</h2>
+      <div class="flow3">
+        <div class="box"><span class="icon">📦</span><strong>MessageGroup</strong>
+          <p>メッセージを安全に扱うためのまとまり。ツール呼び出しとツール結果は片方だけ消すと壊れるため、1グループとして扱います。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box"><span class="icon">🔔</span><strong>Trigger</strong>
+          <p>いつ圧縮を開始するか。例: トークン数がしきい値を超えた、メッセージ数が多い、ツール呼び出しがある。</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box"><span class="icon">🎯</span><strong>Target</strong>
+          <p>どこまで圧縮したら止めるか。目標を満たしたら、それ以上は削りません。</p>
+        </div>
+      </div>
+
+      <h3>MessageGroup の種類</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>種類</th>
+            <th>意味</th>
+            <th>圧縮時の扱い</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>system</code></td>
+            <td>システムメッセージ</td>
+            <td>常に保護する</td>
+          </tr>
+          <tr>
+            <td><code>user</code></td>
+            <td>ユーザーの発話</td>
+            <td>古いものは要約・削除対象になり得る</td>
+          </tr>
+          <tr>
+            <td><code>assistant_text</code></td>
+            <td>通常のAI応答</td>
+            <td>古いものは要約・削除対象になり得る</td>
+          </tr>
+          <tr>
+            <td><code>tool_call</code></td>
+            <td>ツール呼び出しとツール結果</td>
+            <td>必ずまとまりとして扱う。片方だけ消さない</td>
+          </tr>
+          <tr>
+            <td><code>summary</code></td>
+            <td>要約戦略で生成された要約</td>
+            <td>古い会話の代替文脈として残す</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="strategies">
+      <h2>4. 圧縮戦略の選び方</h2>
+      <p>戦略は「弱い圧縮」から「強い圧縮」へ順に使うのが基本です。最初から削除に頼ると、必要な文脈まで失いやすくなります。</p>
+      <div class="diagram">
+        <h3>おすすめの順序</h3>
+        <div class="flow3">
+          <div class="box"><span class="icon">🧰</span><strong>1. ツール結果を軽くする</strong>
+            <p><code>ToolResultCompactionStrategy</code><br>古いツール結果を短い要約メッセージに折りたたむ。</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="box"><span class="icon">📝</span><strong>2. 古い会話を要約する</strong>
+            <p><code>SummarizationStrategy</code><br>重要な事実・決定・ユーザー設定を残す。</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="box"><span class="icon">🪟</span><strong>3. 最新履歴に絞る</strong>
+            <p><code>SlidingWindowStrategy</code> / <code>TruncationStrategy</code><br>最後の防衛策として古いグループを除外する。</p>
+          </div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>戦略</th>
+            <th>強さ</th>
+            <th>何をするか</th>
+            <th>LLM要否</th>
+            <th>向いている用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ToolResultCompactionStrategy</code></td>
+            <td>低</td>
+            <td>古いツール結果を短い要約メッセージにする</td>
+            <td>不要</td>
+            <td>検索・API・ファイル読み取りが多いAgent</td>
+          </tr>
+          <tr>
+            <td><code>SelectiveToolCallCompactionStrategy</code></td>
+            <td>低〜中</td>
+            <td>古いツール呼び出しグループを完全に除外する</td>
+            <td>不要</td>
+            <td>古いツール履歴が不要な場合</td>
+          </tr>
+          <tr>
+            <td><code>SummarizationStrategy</code></td>
+            <td>中</td>
+            <td>古い会話をLLMで要約し、要約メッセージに置き換える</td>
+            <td>必要</td>
+            <td>長期対話・サポート・相談</td>
+          </tr>
+          <tr>
+            <td><code>SlidingWindowStrategy</code></td>
+            <td>高</td>
+            <td>最新の一定グループだけ残す</td>
+            <td>不要</td>
+            <td>単発依頼、軽量処理、厳格な履歴制限</td>
+          </tr>
+          <tr>
+            <td><code>TruncationStrategy</code></td>
+            <td>高</td>
+            <td>古いグループを削って指定サイズに近づける</td>
+            <td>不要</td>
+            <td>緊急のトークン予算バックストップ</td>
+          </tr>
+          <tr>
+            <td><code>TokenBudgetComposedStrategy</code></td>
+            <td>設定次第</td>
+            <td>複数戦略を順番に実行し、予算達成で停止する</td>
+            <td>戦略次第</td>
+            <td>実運用の標準構成</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="implementation">
+      <h2>5. 実装パターン</h2>
+      <div class="diagram">
+        <h3>Python での基本構成</h3>
+        <pre><code>from agent_framework import Agent, CompactionProvider, InMemoryHistoryProvider
+from agent_framework._compaction import (
+    CharacterEstimatorTokenizer,
+    SlidingWindowStrategy,
+    SummarizationStrategy,
+    TokenBudgetComposedStrategy,
+    ToolResultCompactionStrategy,
+)
+
+tokenizer = CharacterEstimatorTokenizer()
+
+pipeline = TokenBudgetComposedStrategy(
+    token_budget=16_000,
+    tokenizer=tokenizer,
+    strategies=[
+        ToolResultCompactionStrategy(keep_last_tool_call_groups=1),
+        SummarizationStrategy(client=summarizer_client, target_count=4, threshold=2),
+        SlidingWindowStrategy(keep_last_groups=20),
+    ],
+)
+
+history = InMemoryHistoryProvider()
+compaction = CompactionProvider(
+    before_strategy=pipeline,
+    history_source_id=history.source_id,
+)
+
+agent = Agent(
+    client=client,
+    name="ShoppingAssistant",
+    instructions="You are a helpful shopping assistant.",
+    context_providers=[history, compaction],
+)</code></pre>
+        <p class="caption">ポイントは、履歴プロバイダーと compaction provider を同じ <code>context_providers</code>
+          に登録し、<code>history_source_id</code> で圧縮対象の履歴を指定することです。</p>
+      </div>
+
+      <h3>before_strategy / after_strategy / ad-hoc の違い</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>種類</th>
+            <th>タイミング</th>
+            <th>目的</th>
+            <th>使いどころ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>before_strategy</code></td>
+            <td>モデル呼び出し前</td>
+            <td>今回モデルへ渡す文脈を小さくする</td>
+            <td>通常のメイン構成</td>
+          </tr>
+          <tr>
+            <td><code>after_strategy</code></td>
+            <td>モデル応答後</td>
+            <td>保存済み履歴を次回に備えて軽くする</td>
+            <td>ツール結果などを永続的に軽くしたい場合</td>
+          </tr>
+          <tr>
+            <td><code>apply_compaction</code></td>
+            <td>任意</td>
+            <td>セッション外の message 配列を直接圧縮する</td>
+            <td>バッチ処理・移行・検証用</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="warn">
+        <strong>要約用モデルは別に考える</strong>
+        <p><code>SummarizationStrategy</code> は要約用のLLMクライアントが必要です。公式では、品質を保ちつつコストを下げるため、小さく安価なモデルを使うヒントが示されています。</p>
+      </div>
+    </section>
+
+    <section id="practice">
+      <h2>6. 実運用での設計判断</h2>
+      <div class="matrix">
+        <div class="card rank">
+          <div class="num">1</div>
+          <div><strong>まず残す情報を決める</strong>
+            <p>最新のユーザー依頼、直近の応答、直近のツール結果、システム指示は優先して残します。</p>
+          </div>
+        </div>
+        <div class="card rank">
+          <div class="num">2</div>
+          <div><strong>ツール結果から軽くする</strong>
+            <p>検索結果・API応答・ファイル読み取り結果は肥大化しやすいため、最初の圧縮対象にします。</p>
+          </div>
+        </div>
+        <div class="card rank">
+          <div class="num">3</div>
+          <div><strong>意味が必要なら要約する</strong>
+            <p>古い相談内容や決定事項を残したい場合は、削除ではなく要約を使います。</p>
+          </div>
+        </div>
+        <div class="card rank">
+          <div class="num">4</div>
+          <div><strong>削除は最後の手段にする</strong>
+            <p>Sliding Window や Truncation は強力ですが、文脈を失います。バックストップとして扱います。</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>ユースケース別のおすすめ</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ユースケース</th>
+            <th>おすすめ構成</th>
+            <th>理由</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>社内文書検索Agent</td>
+            <td>ToolResult → Summarization → SlidingWindow</td>
+            <td>検索結果が大きく、過去の質問意図も残したい</td>
+          </tr>
+          <tr>
+            <td>FAQ回答Agent</td>
+            <td>ToolResult → SlidingWindow</td>
+            <td>長期文脈より、軽さと安定性が重要</td>
+          </tr>
+          <tr>
+            <td>業務相談Agent</td>
+            <td>Summarization中心</td>
+            <td>過去の決定事項やユーザー事情が重要</td>
+          </tr>
+          <tr>
+            <td>コード調査Agent</td>
+            <td>ToolResult → Summarization → Truncation</td>
+            <td>ファイル内容・検索結果が肥大化しやすく、最後の予算制御が必要</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="danger">
+        <strong>バッドプラクティス</strong>
+        <ul>
+          <li>最初から <code>TruncationStrategy</code> だけに頼る</li>
+          <li>要約を原文の完全な監査証跡として扱う</li>
+          <li><code>token_budget</code> をモデルの上限ぎりぎりにする</li>
+          <li>ツール呼び出しとツール結果を別々に削除する</li>
+        </ul>
+      </div>
+
+      <div class="ok">
+        <strong>おすすめ初期値の考え方</strong>
+        <p>明確な根拠がない初期段階では、<code>TokenBudgetComposedStrategy</code> に
+          <code>ToolResultCompactionStrategy</code>、<code>SummarizationStrategy</code>、<code>SlidingWindowStrategy</code>
+          を順に入れる構成が分かりやすいです。強い削除戦略は最後に置きます。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>まとめ</h2>
+      <div class="panel">
+        <p>Compaction の本質は、履歴を雑に削ることではありません。<strong>「残す」「軽くする」「最後に捨てる」順番を設計すること</strong>です。</p>
+        <p>非エンジニア向けには、Agent が会話を続けるための「整理整頓」と説明すると伝わりやすいです。エンジニア向けには、トークン予算・履歴プロバイダー・MessageGroup の境界・before/after
+          の実行タイミングを押さえる必要があります。</p>
+      </div>
+    </section>
+
+    <p class="source">参考: Microsoft Learn「Agent Framework / Conversations /
+      Compaction」。本資料は、公式ドキュメントの内容を非エンジニアにも伝わるよう再構成した説明資料です。</p>
   </main>
-  <script type="module">
-    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
-      securityLevel: "loose"
-    });
-  </script>
 </body>
+
 </html>

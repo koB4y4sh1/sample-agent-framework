@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Microsoft Agent Framework × Neo4j 拡張性 解説資料</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #ffffff;
+            --text: #1f2328;
+            --muted: #667085;
+            --surface: #f6f8fb;
+            --surface-strong: #eef4ff;
+            --border: #d7dee8;
+            --accent: #2563eb;
+            --accent-2: #7c3aed;
+            --neo: #00a36c;
+            --accent-bg: #eaf2ff;
+            --ok: #138a36;
+            --ok-bg: #e8f8ed;
+            --warn: #a15c00;
+            --warn-bg: #fff4d6;
+            --danger: #c62828;
+            --danger-bg: #ffebee;
+            --code-bg: #eef2f6;
+            --shadow: 0 14px 36px rgba(31, 41, 55, 0.12);
+            --radius: 18px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0d1117;
+                --text: #e6edf3;
+                --muted: #97a3b6;
+                --surface: #151b23;
+                --surface-strong: #182235;
+                --border: #30363d;
+                --accent: #6aa4ff;
+                --accent-2: #b28cff;
+                --neo: #47d18c;
+                --accent-bg: #11243f;
+                --ok: #42c26f;
+                --ok-bg: #10281a;
+                --warn: #f3b347;
+                --warn-bg: #332500;
+                --danger: #ff8a8a;
+                --danger-bg: #3b1114;
+                --code-bg: #1d2430;
+                --shadow: none;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at top right, rgba(0, 163, 108, 0.10), transparent 28%),
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26%),
+                var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.75;
+        }
+
+        main {
+            width: min(1160px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 64px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1.14;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            margin: 44px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            font-size: 1.45rem;
+            line-height: 1.3;
+        }
+
+        h3 {
+            margin: 0 0 8px;
+            font-size: 1.08rem;
+            line-height: 1.35;
+        }
+
+        p {
+            margin: 0 0 14px;
+        }
+
+        ul,
+        ol {
+            margin: 10px 0 0;
+            padding-left: 1.35rem;
+        }
+
+        li {
+            margin: 6px 0;
+        }
+
+        code {
+            padding: 0.12em 0.38em;
+            border-radius: 7px;
+            background: var(--code-bg);
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 0.92em;
+        }
+
+        pre {
+            margin: 14px 0 0;
+            padding: 16px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--code-bg);
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            overflow-wrap: anywhere;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 12px 14px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: var(--surface);
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .hero,
+        .card,
+        .panel,
+        .diagram,
+        .usecase {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .hero {
+            padding: 24px;
+            margin-top: 18px;
+            background: linear-gradient(135deg, var(--surface) 0%, rgba(0, 163, 108, 0.12) 55%, var(--accent-bg) 100%);
+        }
+
+        .lead {
+            color: var(--muted);
+            font-size: 1.04rem;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--neo);
+            font-weight: 800;
+            font-size: 0.92rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .card,
+        .panel,
+        .diagram,
+        .usecase {
+            padding: 18px;
+        }
+
+        .card strong,
+        .usecase strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .small,
+        .caption {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .caption {
+            margin-top: 10px;
+        }
+
+        .note,
+        .ok,
+        .warning,
+        .danger {
+            margin: 16px 0;
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .note {
+            background: var(--accent-bg);
+            border-left: 6px solid var(--accent);
+        }
+
+        .ok {
+            background: var(--ok-bg);
+            border-left: 6px solid var(--ok);
+        }
+
+        .warning {
+            background: var(--warn-bg);
+            border-left: 6px solid var(--warn);
+        }
+
+        .danger {
+            background: var(--danger-bg);
+            border-left: 6px solid var(--danger);
+        }
+
+        .stack {
+            display: grid;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 10px;
+            min-height: 30px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .piece {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            font-size: 0.95rem;
+        }
+
+        .piece.accent {
+            background: var(--accent-bg);
+            border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+        }
+
+        .piece.neo {
+            background: rgba(0, 163, 108, 0.10);
+            border-color: color-mix(in srgb, var(--neo) 45%, var(--border));
+        }
+
+        .piece.ok {
+            background: var(--ok-bg);
+            border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+        }
+
+        .piece.warn {
+            background: var(--warn-bg);
+            border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+        }
+
+        .piece.danger {
+            background: var(--danger-bg);
+            border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+        }
+
+        .flow {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr;
+            gap: 10px;
+            align-items: stretch;
+            margin-top: 14px;
+        }
+
+        .flow.four {
+            grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+        }
+
+        .arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 1.2rem;
+        }
+
+        .compare {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .svg-wrap {
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--bg);
+            padding: 10px;
+        }
+
+        .badge-num {
+            display: inline-grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            margin-right: 8px;
+            border-radius: 999px;
+            color: white;
+            background: linear-gradient(135deg, var(--accent), var(--neo));
+            font-weight: 900;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .mono-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .mono-list li {
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        footer {
+            margin-top: 44px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 820px) {
+
+            .flow,
+            .flow.four {
+                grid-template-columns: 1fr;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+                min-height: 28px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Microsoft Agent Framework × Neo4j<br>拡張性 解説資料</h1>
+
+        <section class="hero">
+            <div class="eyebrow">GraphRAG + Memory</div>
+            <p><strong>結論:</strong> Neo4j 統合は、Agent Framework に <strong>「関係性をたどる知識検索」</strong> と
+                <strong>「セッションをまたぐ永続メモリ」</strong> を追加する拡張ポイントです。</p>
+            <p class="lead">
+                GraphRAG は既存のナレッジグラフから回答根拠を取得するための拡張、Memory は会話からユーザー設定・事実・推論履歴を蓄積して再利用するための拡張です。両者を混同しないことが設計の入口です。
+            </p>
+        </section>
+
+        <div class="ok">
+            <strong>30秒で理解する</strong>
+            <ul>
+                <li><strong>Neo4j GraphRAG:</strong> 既存のナレッジグラフを検索し、関連エンティティまでたどって回答の根拠を厚くする。</li>
+                <li><strong>Neo4j Memory:</strong> 会話から記憶を抽出・保存し、次回以降の会話に自動で出せるようにする。</li>
+                <li><strong>拡張性の本質:</strong> Agent Framework の <code>context_providers</code> と <code>tools</code> に
+                    Neo4j を差し込み、検索・記憶・推論補助を外部化すること。</li>
+            </ul>
+        </div>
+
+        <h2><span class="badge-num">1</span>Agent Framework に Neo4j を足すと何が広がるか</h2>
+        <div class="diagram">
+            <h3>エージェントの「頭の外側」を拡張する</h3>
+            <div class="flow">
+                <div class="piece accent"><strong>Agent Framework</strong><br>ユーザー入力を受け、LLM とツールをオーケストレーション</div>
+                <div class="arrow">→</div>
+                <div class="piece neo"><strong>Neo4j GraphRAG</strong><br>既存知識を関係性込みで取得</div>
+                <div class="arrow">+</div>
+                <div class="piece ok"><strong>Neo4j Memory</strong><br>会話から記憶を作り、次回以降に呼び戻す</div>
+            </div>
+            <p class="caption">LLM のコンテキストだけに頼らず、知識と記憶を Neo4j 側に分離できます。</p>
+        </div>
+
+        <div class="svg-wrap" aria-label="Agent FrameworkとNeo4j拡張の全体図">
+            <svg viewBox="0 0 1080 360" width="100%" role="img">
+                <defs>
+                    <style>
+                        .t {
+                            font: 16px system-ui, sans-serif;
+                            fill: currentColor;
+                        }
+
+                        .s {
+                            font: 13px system-ui, sans-serif;
+                            fill: #667085;
+                        }
+
+                        .b1 {
+                            fill: #f6f8fb;
+                            stroke: #d7dee8;
+                            stroke-width: 1.5;
+                            rx: 16;
+                        }
+
+                        .b2 {
+                            fill: #eaf2ff;
+                            stroke: #2563eb;
+                            stroke-width: 1.5;
+                            rx: 16;
+                        }
+
+                        .b3 {
+                            fill: #e8f8ed;
+                            stroke: #00a36c;
+                            stroke-width: 1.5;
+                            rx: 16;
+                        }
+
+                        .b4 {
+                            fill: #fff4d6;
+                            stroke: #a15c00;
+                            stroke-width: 1.5;
+                            rx: 16;
+                        }
+
+                        .a {
+                            stroke: #7c8899;
+                            stroke-width: 2.2;
+                            marker-end: url(#m);
+                        }
+
+                        .a2 {
+                            stroke: #00a36c;
+                            stroke-width: 2.2;
+                            marker-end: url(#m2);
+                        }
+                    </style>
+                    <marker id="m" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                        <path d="M0,0 L12,6 L0,12 z" fill="#7c8899"></path>
+                    </marker>
+                    <marker id="m2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                        <path d="M0,0 L12,6 L0,12 z" fill="#00a36c"></path>
+                    </marker>
+                </defs>
+                <rect x="36" y="130" width="180" height="82" class="b1"></rect>
+                <text x="74" y="164" class="t">ユーザー依頼</text>
+                <text x="60" y="188" class="s">質問・相談・依頼</text>
+                <line x1="216" y1="171" x2="278" y2="171" class="a"></line>
+
+                <rect x="278" y="106" width="230" height="130" class="b2"></rect>
+                <text x="330" y="142" class="t" font-weight="700">Agent Framework</text>
+                <text x="310" y="169" class="s">LLM / tools / context providers</text>
+                <text x="321" y="194" class="s">実行の流れを組み立てる</text>
+
+                <line x1="508" y1="148" x2="610" y2="92" class="a2"></line>
+                <line x1="508" y1="194" x2="610" y2="258" class="a2"></line>
+
+                <rect x="610" y="38" width="400" height="112" class="b3"></rect>
+                <text x="650" y="72" class="t" font-weight="700">Neo4j GraphRAG Context Provider</text>
+                <text x="650" y="99" class="s">既存ナレッジグラフから検索</text>
+                <text x="650" y="124" class="s">ベクター / フルテキスト / ハイブリッド + Cypher traversal</text>
+
+                <rect x="610" y="214" width="400" height="112" class="b4"></rect>
+                <text x="650" y="248" class="t" font-weight="700">Neo4j Memory Provider</text>
+                <text x="650" y="275" class="s">会話から記憶を抽出・保存</text>
+                <text x="650" y="300" class="s">短期 / 長期 / 推論メモリを呼び戻す</text>
+            </svg>
+        </div>
+
+        <h2><span class="badge-num">2</span>GraphRAG と Memory の違い</h2>
+        <p>Neo4j は Agent Framework 向けに2つの統合を提供しています。設計上は「既にある知識を探す」のか「会話から新しい記憶を作る」のかで分けます。</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>観点</th>
+                    <th>Neo4j GraphRAG</th>
+                    <th>Neo4j Memory</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>目的</td>
+                    <td>既存のナレッジグラフを検索し、回答を根拠付ける</td>
+                    <td>対話から記憶を保存し、次回以降に呼び戻す</td>
+                </tr>
+                <tr>
+                    <td>主な入口</td>
+                    <td><code>Neo4jContextProvider</code></td>
+                    <td><code>Neo4jMicrosoftMemory</code>、<code>memory.context_provider</code>、メモリツール</td>
+                </tr>
+                <tr>
+                    <td>扱う情報</td>
+                    <td>文書チャンク、エンティティ、関係、既存DB内の知識</td>
+                    <td>会話履歴、ユーザー設定、事実、推論トレース、ツール利用パターン</td>
+                </tr>
+                <tr>
+                    <td>検索の特徴</td>
+                    <td>ベクター、フルテキスト、ハイブリッド検索と Cypher によるグラフトラバーサル</td>
+                    <td>関連メモリの自動取得、明示的な記憶検索、エンティティ接続の探索</td>
+                </tr>
+                <tr>
+                    <td>向く用途</td>
+                    <td>社内文書、契約、設計情報、FAQ、関係性が重要な業務知識</td>
+                    <td>ユーザー好み、顧客履歴、継続タスク、長期アシスタント</td>
+                </tr>
+                <tr>
+                    <td>対応</td>
+                    <td>Python と .NET の例が掲載</td>
+                    <td>公式ページ上では Python タブの使用例が中心で、C# はまだ使用不可と記載</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2><span class="badge-num">3</span>Neo4j GraphRAG: 既存知識を「関係性込み」で検索する</h2>
+        <div class="two-col">
+            <div class="panel">
+                <h3>普通のRAGで起きやすいこと</h3>
+                <div class="stack">
+                    <div class="piece warn">検索結果がテキストチャンク単位でバラバラに返る</div>
+                    <div class="piece warn">関連する会社、人物、案件、文書のつながりが見えにくい</div>
+                    <div class="piece warn">「この情報は何と関係しているか」を追加で推論しにくい</div>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>GraphRAG で広がること</h3>
+                <div class="stack">
+                    <div class="piece neo">関連エンティティまでグラフをたどれる</div>
+                    <div class="piece neo">ベクター検索 + キーワード検索 + グラフ traversal を組み合わせられる</div>
+                    <div class="piece neo">Cypher で返す文脈を細かく制御できる</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="diagram">
+            <h3>GraphRAG の実行イメージ</h3>
+            <div class="flow.four flow">
+                <div class="piece accent"><strong>質問</strong><br>「Acme Corp のリスクは？」</div>
+                <div class="arrow">→</div>
+                <div class="piece neo"><strong>検索</strong><br>vector / fulltext / hybrid</div>
+                <div class="arrow">→</div>
+                <div class="piece neo"><strong>Traversal</strong><br>文書・会社・関係先をたどる</div>
+                <div class="arrow">→</div>
+                <div class="piece ok"><strong>回答</strong><br>関係性を含む根拠つき回答</div>
+            </div>
+        </div>
+
+        <h3>Python 実装の要点</h3>
+        <pre>from agent_framework import Agent
+from agent_framework.foundry import FoundryChatClient
+from agent_framework_neo4j import Neo4jContextProvider, Neo4jSettings, AzureAISettings, AzureAIEmbedder
+
+neo4j_settings = Neo4jSettings()
+azure_settings = AzureAISettings()
+embedder = AzureAIEmbedder(
+    endpoint=azure_settings.inference_endpoint,
+    credential=sync_credential,
+    model=azure_settings.embedding_model,
+)
+
+neo4j_provider = Neo4jContextProvider(
+    uri=neo4j_settings.uri,
+    username=neo4j_settings.username,
+    password=neo4j_settings.get_password(),
+    index_name=neo4j_settings.vector_index_name,
+    index_type="vector",
+    embedder=embedder,
+    top_k=5,
+    retrieval_query="""
+        MATCH (node)-[:FROM_DOCUMENT]->(doc:Document)
+        OPTIONAL MATCH (doc)<-[:FILED]-(company:Company)
+        RETURN node.text AS text, score, doc.title AS title, company.name AS company
+        ORDER BY score DESC
+    """,
+)
+
+agent = Agent(
+    client=FoundryChatClient(...),
+    instructions="You are a financial analyst assistant.",
+    context_providers=[neo4j_provider],
+)</pre>
+
+        <h2><span class="badge-num">4</span>Neo4j Memory: 会話からグラフ型の記憶を作る</h2>
+        <p>Memory は静的な知識ベース検索ではありません。会話の中からエンティティ、好み、事実、推論の流れを抽出し、Neo4j 上に接続された記憶として残します。</p>
+
+        <div class="three-col">
+            <div class="card"><strong>短期メモリ</strong>
+                <p>会話履歴と最近のコンテキスト。今の会話を自然につなげるための記憶。</p>
+            </div>
+            <div class="card"><strong>長期メモリ</strong>
+                <p>ユーザー設定、事実、抽出されたエンティティ。セッションをまたいで再利用する記憶。</p>
+            </div>
+            <div class="card"><strong>推論メモリ</strong>
+                <p>過去の推論トレースやツール使用パターン。次回の判断や手順選択に使う記憶。</p>
+            </div>
+        </div>
+
+        <div class="diagram">
+            <h3>Memory の実行イメージ</h3>
+            <div class="flow.four flow">
+                <div class="piece accent"><strong>会話</strong><br>「飛行機は窓側が好き」</div>
+                <div class="arrow">→</div>
+                <div class="piece neo"><strong>抽出</strong><br>ユーザー設定・エンティティ</div>
+                <div class="arrow">→</div>
+                <div class="piece neo"><strong>保存</strong><br>Neo4j ナレッジグラフ</div>
+                <div class="arrow">→</div>
+                <div class="piece ok"><strong>呼び戻し</strong><br>次回の会話に自動で文脈提供</div>
+            </div>
+        </div>
+
+        <h3>Python 実装の要点</h3>
+        <pre>from neo4j_agent_memory import MemoryClient, MemorySettings
+from neo4j_agent_memory.integrations.microsoft_agent import (
+    Neo4jMicrosoftMemory,
+    create_memory_tools,
+)
+
+settings = MemorySettings(
+    neo4j={
+        "uri": os.environ["NEO4J_URI"],
+        "username": os.environ.get("NEO4J_USERNAME", "neo4j"),
+        "password": SecretStr(os.environ["NEO4J_PASSWORD"]),
+    },
+    embedding={"provider": "openai", "model": "text-embedding-3-small"},
+)
+
+memory_client = MemoryClient(settings)
+
+async with memory_client:
+    memory = Neo4jMicrosoftMemory.from_memory_client(
+        memory_client=memory_client,
+        session_id="user-123",
+    )
+    tools = create_memory_tools(memory)
+
+    agent = Agent(
+        client=FoundryChatClient(...),
+        instructions="You are a helpful assistant with persistent memory.",
+        tools=tools,
+        context_providers=[memory.context_provider],
+    )</pre>
+
+        <h2><span class="badge-num">5</span>拡張アーキテクチャとしての整理</h2>
+        <div class="compare">
+            <div class="usecase">
+                <h3>GraphRAG を入れる位置</h3>
+                <p>回答前に、外部知識を検索してコンテキストとして追加します。</p>
+                <div class="stack">
+                    <div class="piece accent">ユーザー質問</div>
+                    <div class="piece neo">Neo4jContextProvider が関連サブグラフを取得</div>
+                    <div class="piece ok">LLM が取得結果を使って回答</div>
+                </div>
+            </div>
+            <div class="usecase">
+                <h3>Memory を入れる位置</h3>
+                <p>回答前に関連記憶を呼び戻し、回答後に新しい記憶を保存します。</p>
+                <div class="stack">
+                    <div class="piece accent">会話開始</div>
+                    <div class="piece neo">関連メモリを自動取得</div>
+                    <div class="piece ok">会話後に新しいメモリを保存</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="note">
+            <strong>設計上の重要点</strong>
+            <p>
+                GraphRAG と Memory は同じ Neo4j を使っていても、ライフサイクルが違います。GraphRAG は「既存知識を検索する処理」、Memory
+                は「対話から知識グラフを育てる処理」です。運用ではデータ領域、権限、更新タイミング、削除ポリシーを分けて設計するのが安全です。
+            </p>
+        </div>
+
+        <h2><span class="badge-num">6</span>どんな業務に向いているか</h2>
+        <div class="grid">
+            <div class="card"><strong>社内ナレッジ検索</strong>
+                <p>部署、文書、案件、システム、担当者の関係をたどる。単なる全文検索より関係性を説明しやすい。</p>
+            </div>
+            <div class="card"><strong>顧客対応エージェント</strong>
+                <p>過去の会話、顧客の好み、問い合わせ履歴を記憶し、次回対応に反映する。</p>
+            </div>
+            <div class="card"><strong>設計・障害調査</strong>
+                <p>システム、ログ、変更履歴、依存関係をグラフ化し、原因候補のつながりを取得する。</p>
+            </div>
+            <div class="card"><strong>営業・提案支援</strong>
+                <p>会社、担当者、課題、過去提案、契約情報の関係を検索し、提案文脈を補強する。</p>
+            </div>
+            <div class="card"><strong>パーソナルAI</strong>
+                <p>ユーザーの嗜好、継続タスク、過去の意思決定を長期記憶として保持する。</p>
+            </div>
+            <div class="card"><strong>FAQ高度化</strong>
+                <p>FAQ、問い合わせ、カテゴリ、根拠文書、関連手順をつなげて、類似質問の回答品質を上げる。</p>
+            </div>
+        </div>
+
+        <h2><span class="badge-num">7</span>ベストプラクティス</h2>
+        <div class="grid">
+            <div class="card"><strong>GraphRAG と Memory を混ぜすぎない</strong>
+                <p>検索対象の公式知識と、会話から生成される記憶は性質が違います。DB、ラベル、権限を分ける設計が無難です。</p>
+            </div>
+            <div class="card"><strong>Cypher で返す文脈を絞る</strong>
+                <p>関係をたどれるからといって全部返すとノイズになります。回答に必要な関係だけ返す retrieval_query を設計します。</p>
+            </div>
+            <div class="card"><strong>メモリ保存にはポリシーを置く</strong>
+                <p>何を記憶してよいか、いつ消すか、ユーザーにどう見せるかを決めます。特にPIIや機密情報は要注意です。</p>
+            </div>
+            <div class="card"><strong>評価を分ける</strong>
+                <p>GraphRAG は検索精度・根拠品質、Memory は想起精度・不要記憶の抑制・削除容易性で評価します。</p>
+            </div>
+        </div>
+
+        <h2><span class="badge-num">8</span>バッドプラクティス</h2>
+        <div class="danger">
+            <strong>Neo4j を入れれば精度が上がる、という考え方</strong>
+            <p>Neo4j は関係性を扱う基盤です。グラフ構造、インデックス、Cypher、メモリ保存ルールが悪いと、むしろ不要な情報を拾って回答がぶれます。</p>
+        </div>
+        <div class="warning">
+            <strong>会話メモリを無制限に保存する</strong>
+            <p>Memory は便利ですが、記憶してはいけない情報まで保存するとリスクになります。保存対象、保持期間、削除方法、ユーザー確認の設計が必要です。</p>
+        </div>
+        <div class="warning">
+            <strong>GraphRAG を通常RAGの完全上位互換として扱う</strong>
+            <p>関係性が重要でない単純検索では、ベクター検索や全文検索だけで十分な場合があります。GraphRAG は「つながり」が価値になる場面で使います。</p>
+        </div>
+
+        <h2><span class="badge-num">9</span>採用判断フロー</h2>
+        <ol>
+            <li>既存の文書・DB・エンティティ関係を根拠として回答したい → <strong>GraphRAG</strong> を検討。</li>
+            <li>会話からユーザー設定や事実を学習し、次回以降も使いたい → <strong>Memory</strong> を検討。</li>
+            <li>どちらも必要 → GraphRAG は公式知識、Memory はユーザー/会話由来の記憶として分離。</li>
+            <li>関係性が価値にならない → 通常RAGやシンプルな履歴管理で十分な可能性あり。</li>
+            <li>個人情報・機密情報を扱う → 保存ポリシー、削除ポリシー、監査ログを先に設計。</li>
+        </ol>
+
+        <h2>参考リンク</h2>
+        <ul>
+            <li><a
+                    href="https://learn.microsoft.com/ja-jp/agent-framework/integrations/neo4j-graphrag?pivots=programming-language-python">Neo4j
+                    GraphRAG コンテキスト プロバイダー | Microsoft Learn</a></li>
+            <li><a
+                    href="https://learn.microsoft.com/ja-jp/agent-framework/integrations/neo4j-memory?pivots=programming-language-python">Neo4j
+                    メモリ プロバイダー | Microsoft Learn</a></li>
+        </ul>
+
+        <footer>
+            この資料は Microsoft Learn の Neo4j GraphRAG / Neo4j Memory 統合ページをもとに、Agent Framework の拡張性という観点で再構成したものです。
+        </footer>
+    </main>
+</body>
+
+</html>
