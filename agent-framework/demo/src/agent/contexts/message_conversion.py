@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 from agent_framework import (
     AgentSession,
@@ -15,6 +15,11 @@ from agent.messages import MessageHistoryNormalizer, ProviderMessageConverter
 EXECUTED_INPUT_MESSAGES_METADATA_KEY = "message_conversion:executed_input_messages"
 
 
+class ReplayMessageConverter(Protocol):
+    def convert_messages(self, messages: list[Message]) -> list[Message]:
+        ...
+
+
 class MessageConversionContextProvider(ContextProvider):
     DEFAULT_SOURCE_ID = "message_conversion"
     _METADATA_KEY_PREFIX = "message_conversion_original:"
@@ -25,12 +30,14 @@ class MessageConversionContextProvider(ContextProvider):
         history_source_id: str,
         message_converter: ProviderMessageConverter,
         message_normalizer: MessageHistoryNormalizer | None = None,
+        replay_converter: ReplayMessageConverter | None = None,
         source_id: str | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
         self._history_source_id = history_source_id
         self._message_converter = message_converter
         self._message_normalizer = message_normalizer or MessageHistoryNormalizer(normalize_approval_exchanges=True)
+        self._replay_converter = replay_converter
         self._metadata_key = f"{self._METADATA_KEY_PREFIX}{self.source_id}:{history_source_id}"
 
     async def before_run(
@@ -52,7 +59,7 @@ class MessageConversionContextProvider(ContextProvider):
             content_type="function_approval_response",
         )
         context.metadata[f"{self._metadata_key}:input"] = original_input_messages
-        context.input_messages = self._message_converter.convert_messages(original_input_messages)
+        context.input_messages = self._convert_for_replay(original_input_messages)
 
         if not messages:
             return
@@ -63,7 +70,7 @@ class MessageConversionContextProvider(ContextProvider):
             current_input_approval_request_ids=current_input_approval_request_ids,
             current_input_approval_response_ids=current_input_approval_response_ids,
         )
-        context.context_messages[self._history_source_id] = self._message_converter.convert_messages(normalized_messages)
+        context.context_messages[self._history_source_id] = self._convert_for_replay(normalized_messages)
 
     async def after_run(
         self,
@@ -141,6 +148,12 @@ class MessageConversionContextProvider(ContextProvider):
 
     def _has_approval_response(self, message: Message) -> bool:
         return any(content.type == "function_approval_response" for content in message.contents)
+
+    def _convert_for_replay(self, messages: list[Message]) -> list[Message]:
+        converted = self._message_converter.convert_messages(messages)
+        if self._replay_converter is None:
+            return converted
+        return self._replay_converter.convert_messages(converted)
 
     def _copy_message(self, message: Message) -> Message:
         return Message(

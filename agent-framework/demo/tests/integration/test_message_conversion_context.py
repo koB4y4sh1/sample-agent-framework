@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -10,7 +11,7 @@ from agent.contexts import (
     MessageConversionContextProvider,
 )
 from agent.history import LocalHistoryProvider, MessageStore
-from agent.messages import CommonMessageConverter, ProviderMessageConverter
+from agent.messages import AnthropicReplayConverter, CommonMessageConverter, ProviderMessageConverter
 from agent_framework import (
     AgentResponse,
     AgentSession,
@@ -92,6 +93,81 @@ class TestMessageConversionLifecycle:
             )
 
             assert context.context_messages["history"][0] is raw_messages[0]
+
+        asyncio.run(run())
+
+    def test_provider_replays_code_interpreter_history_with_reasoning(self) -> None:
+        async def run() -> None:
+            raw_messages = [
+                Message("user", [Content.from_text("create a sample Word file")]),
+                Message(
+                    "assistant",
+                    [
+                        Content.from_text_reasoning(
+                            text="I need to create the file with code.",
+                            protected_data="signature",
+                        ),
+                        Content.from_code_interpreter_tool_call(
+                            call_id="srvtoolu_1",
+                            inputs=[Content.from_text("{}")],
+                        ),
+                    ],
+                ),
+                Message(
+                    "tool",
+                    [
+                        Content.from_code_interpreter_tool_result(
+                            call_id="srvtoolu_1",
+                            outputs=[
+                                Content.from_text("created /tmp/sample_document.docx"),
+                                Content.from_hosted_file("file_1", name="sample_document.docx"),
+                            ],
+                        )
+                    ],
+                ),
+                Message("assistant", [Content.from_hosted_file("file_1"), Content.from_text("Word file created.")]),
+            ]
+            context = SessionContext(
+                session_id="session",
+                input_messages=[Message("user", [Content.from_text("continue")])],
+                context_messages={"history": raw_messages},
+            )
+            provider = MessageConversionContextProvider(
+                history_source_id="history",
+                message_converter=ProviderMessageConverter(target_provider_family="anthropic"),
+                replay_converter=AnthropicReplayConverter(),
+            )
+
+            await provider.before_run(
+                agent=object(),  # type: ignore[arg-type]
+                session=AgentSession(session_id="session"),
+                context=context,
+                state={},
+            )
+
+            converted_messages = context.context_messages["history"]
+            assert [message.role for message in converted_messages] == [
+                "user",
+                "assistant",
+                "tool",
+                "assistant",
+            ]
+            assert [content.type for content in converted_messages[1].contents] == [
+                "text_reasoning",
+                "function_call",
+            ]
+            assert converted_messages[1].contents[0].protected_data == "signature"
+            assert converted_messages[1].contents[1].name == "code_execution"
+            assert converted_messages[2].contents[0].type == "function_result"
+            assert converted_messages[2].contents[0].call_id == "srvtoolu_1"
+            assert json.loads(converted_messages[2].contents[0].result) == {
+                "outputs": [
+                    {"type": "text", "text": "created /tmp/sample_document.docx"},
+                    {"type": "hosted_file", "file_id": "file_1", "name": "sample_document.docx"},
+                ]
+            }
+            assert [content.type for content in converted_messages[3].contents] == ["hosted_file", "text"]
+            assert all(message.contents for message in converted_messages)
 
         asyncio.run(run())
 

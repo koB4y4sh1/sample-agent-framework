@@ -9,6 +9,7 @@ from .contexts import (
 )
 from .history import LocalHistoryProvider
 from .messages import (
+    AnthropicReplayConverter,
     CommonMessageConverter,
     MessageHistoryNormalizer,
     ProviderMessageConverter,
@@ -40,6 +41,7 @@ __all__ = [
     "CosmosStore",
     "LocalHistoryProvider",
     "MessageStore",
+    "AnthropicReplayConverter",
     "CommonMessageConverter",
     "ProviderMessageConverter",
     "MessageHistoryNormalizer",

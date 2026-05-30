@@ -9,6 +9,7 @@ from agent import (
     DemoCompactionProvider,
     DemoSkills,
     ExecutionContextProvider,
+    AnthropicReplayConverter,
     LocalHistoryProvider,
     LocalStore,
     MessageConversionContextProvider,
@@ -73,6 +74,7 @@ class DemoApplication:
         self.message_conversion_provider = MessageConversionContextProvider(
             history_source_id=self.history_provider.source_id,
             message_converter=self.message_converter,
+            replay_converter=AnthropicReplayConverter() if self.provider_family == "anthropic" else None,
         )
         self.memory_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
