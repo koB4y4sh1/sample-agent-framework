@@ -4180,11 +4180,13 @@ dependencies = [
     { name = "azure-monitor-opentelemetry" },
     { name = "debugpy" },
     { name = "fastmcp" },
+    { name = "openai" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-instrumentation-anthropic" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-instrumentation-mcp" },
+    { name = "python-dotenv" },
     { name = "ruff" },
 ]
 
@@ -4204,11 +4206,13 @@ requires-dist = [
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.7" },
     { name = "debugpy", specifier = ">=1.8.19" },
     { name = "fastmcp", specifier = ">=2.14.2" },
+    { name = "openai", specifier = ">=2.38.0" },
     { name = "opentelemetry-instrumentation-aiohttp-client", specifier = ">=0.61b0" },
     { name = "opentelemetry-instrumentation-anthropic", specifier = ">=0.60.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.61b0" },
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.61b0" },
     { name = "opentelemetry-instrumentation-mcp", specifier = ">=0.60.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "ruff", specifier = ">=0.14.7" },
 ]
 

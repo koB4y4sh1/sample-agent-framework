@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code Review Desk A2A Agent Guide</title>
+  <style>
+    :root {
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #d1d5db;
+      --soft: #f9fafb;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --warn: #92400e;
+      --warn-soft: #fef3c7;
+    }
+
+    body {
+      background: #ffffff;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.75;
+      margin: 32px auto;
+      max-width: 1080px;
+      padding: 0 20px 48px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.35;
+      margin: 28px 0 12px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-top: 0;
+    }
+
+    h2 {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+    }
+
+    p {
+      margin: 8px 0 12px;
+    }
+
+    code,
+    pre {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 0.95em;
+    }
+
+    code {
+      background: #f3f4f6;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+
+    pre {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow-x: auto;
+      padding: 14px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--soft);
+    }
+
+    .lead {
+      color: #374151;
+      font-size: 1.05rem;
+    }
+
+    .note {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 10px 12px;
+    }
+
+    .warning {
+      background: var(--warn-soft);
+      border-left: 4px solid var(--warn);
+      padding: 10px 12px;
+    }
+
+    .diagram {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 18px 0;
+      overflow-x: auto;
+      padding: 16px;
+    }
+
+    .flow {
+      align-items: stretch;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      min-width: 850px;
+    }
+
+    .box {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      position: relative;
+    }
+
+    .box strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .box span {
+      color: var(--muted);
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    .box:not(:last-child)::after {
+      color: var(--accent);
+      content: "→";
+      font-size: 1.4rem;
+      position: absolute;
+      right: -17px;
+      top: 42%;
+    }
+
+    .sequence {
+      counter-reset: step;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px 10px 44px;
+      position: relative;
+    }
+
+    .step::before {
+      background: var(--accent);
+      border-radius: 999px;
+      color: #ffffff;
+      content: counter(step);
+      counter-increment: step;
+      font-weight: 700;
+      height: 24px;
+      left: 12px;
+      line-height: 24px;
+      position: absolute;
+      text-align: center;
+      top: 13px;
+      width: 24px;
+    }
+
+    .state-row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      margin: 16px 0;
+      min-width: 760px;
+    }
+
+    .state {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .state strong {
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    .state small {
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      body {
+        margin-top: 20px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Code Review Desk A2A Agent</h1>
+  <p class="lead">
+    このページは、<code>a2a/demo</code> の A2A デモがどのような仕組みで動いているかを説明するガイドです。
+    このデモは「A2A で動くコードレビュー受付センター」として、レビュー依頼を task として受け取り、状態更新とストリーミングで結果を返します。
+  </p>
+
+  <div class="note">
+    重要な点は、LLM を直接呼び出す部分と、A2A の task lifecycle を管理する部分が分かれていることです。
+    <code>agent.py</code> は OpenAI SDK 呼び出し、<code>server.py</code> は A2A サーバ、<code>client.py</code> は A2A クライアントを担当します。
+  </div>
+
+  <h2>全体像</h2>
+  <p>
+    A2A では、クライアントが直接 LLM を呼ぶのではなく、A2A サーバに task を送ります。
+    サーバは task の状態を管理しながら、必要に応じて LLM を呼び、結果を artifact として返します。
+  </p>
+
+  <div class="diagram" aria-label="A2A demo architecture diagram">
+    <div class="flow">
+      <div class="box">
+        <strong>client.py</strong>
+        <span>レビュー依頼を Message として送信</span>
+      </div>
+      <div class="box">
+        <strong>A2A JSON-RPC</strong>
+        <span>send_message / get_task / cancel_task</span>
+      </div>
+      <div class="box">
+        <strong>server.py</strong>
+        <span>Task 状態と artifact を管理</span>
+      </div>
+      <div class="box">
+        <strong>agent.py</strong>
+        <span>OpenAI SDK で LLM を呼び出す</span>
+      </div>
+      <div class="box">
+        <strong>OpenAI</strong>
+        <span>コードレビュー結果を生成</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>ファイルの役割</h2>
+  <table>
+    <tr>
+      <th>ファイル</th>
+      <th>役割</th>
+      <th>初心者向け説明</th>
+    </tr>
+    <tr>
+      <td><code>agent.py</code></td>
+      <td>OpenAI SDK で LLM を呼ぶ</td>
+      <td>「レビュー担当者」の頭脳部分です。プロンプトと OpenAI API 呼び出しを持ちます。</td>
+    </tr>
+    <tr>
+      <td><code>server.py</code></td>
+      <td>A2A サーバを起動する</td>
+      <td>受付窓口です。依頼を受け、task 状態を更新し、結果を返します。</td>
+    </tr>
+    <tr>
+      <td><code>client.py</code></td>
+      <td>A2A サーバへ依頼を送る</td>
+      <td>利用者側の送信ツールです。task 送信、状態取得、キャンセルを試せます。</td>
+    </tr>
+    <tr>
+      <td><code>README.md</code></td>
+      <td>コマンド例</td>
+      <td>すぐ動かすための最短手順です。</td>
+    </tr>
+  </table>
+
+  <h2>リクエスト処理の流れ</h2>
+  <div class="sequence">
+    <div class="step">
+      <strong>Agent Card を取得する</strong>
+      <p><code>client.py</code> は <code>/.well-known/agent-card.json</code> から、エージェント名、スキル、JSON-RPC の接続先を取得します。</p>
+    </div>
+    <div class="step">
+      <strong>task を送信する</strong>
+      <p><code>send_message</code> でレビュー依頼を送ります。本文は A2A の <code>Message</code> と <code>Part(text=...)</code> に入ります。</p>
+    </div>
+    <div class="step">
+      <strong>TaskStore に task が保存される</strong>
+      <p><code>InMemoryTaskStore</code> が task の状態を保持します。このため <code>get_task</code> で状態を取得できます。</p>
+    </div>
+    <div class="step">
+      <strong>Executor が状態を更新する</strong>
+      <p><code>CodeReviewExecutor</code> が <code>submitted</code>、<code>working</code>、<code>completed</code>
+        などの状態を送ります。</p>
+    </div>
+    <div class="step">
+      <strong>OpenAI SDK でレビューする</strong>
+      <p><code>agent.py</code> の <code>CodeReviewAgent.stream()</code> が Responses API のストリーミングを受け取り、同じ
+        <code>context_id</code> では前回レビューを踏まえた再レビューを行います。</p>
+    </div>
+    <div class="step">
+      <strong>artifact_update で結果を返す</strong>
+      <p><code>executor.py</code> はまず <code>Review Draft</code> をストリーミングし、その後に
+        <code>Summary</code>、<code>Key Findings</code>、<code>Test Plan</code>、<code>Follow Up</code> の複数 artifact
+        へ整理して返します。</p>
+    </div>
+  </div>
+
+  <h2>Task の状態</h2>
+  <p>このデモで確認できる task 状態は以下です。</p>
+  <div class="diagram">
+    <div class="state-row">
+      <div class="state"><strong>SUBMITTED</strong><small>受付直後</small></div>
+      <div class="state"><strong>WORKING</strong><small>レビュー中</small></div>
+      <div class="state"><strong>COMPLETED</strong><small>正常完了</small></div>
+      <div class="state"><strong>CANCELED</strong><small>キャンセル</small></div>
+      <div class="state"><strong>REJECTED</strong><small>受付拒否</small></div>
+      <div class="state"><strong>FAILED</strong><small>処理失敗</small></div>
+    </div>
+  </div>
+
+  <h2>なぜコードレビュー受付センターなのか</h2>
+  <p>
+    A2A のデモでは、単なるチャットよりも「受付」「処理中」「結果返却」「キャンセル」という流れがある題材の方が分かりやすくなります。
+    コードレビューは、依頼を task として受け付け、処理中に状態を出し、結果を report として返すため、A2A の仕組みと相性がよい題材です。
+  </p>
+
+  <h2>起動</h2>
+  <p><code>.env</code> の <code>AZURE_OPENAI_ENDPOINT</code> を <code>load_dotenv()</code> で読み込み、認証には
+    <code>az login</code> 済みの Azure CLI を使います。</p>
+  <pre><code>uv run python a2a/demo/server.py --model gpt-4.1-mini --port 41250</code></pre>
+  <p>VS Code では <code>Demo A2A</code> launch configuration から起動できます。</p>
+
+  <h2>task 送信とストリーミング</h2>
+  <p>通常のレビュー依頼です。LLM を呼び出し、まず Review Draft を流し、その後に成果物ごとの artifact を表示します。</p>
+  <pre><code>uv run python a2a/demo/client.py --text "このPRのリスクをレビューして: 認証ミドルウェアを追加し、全APIに適用した"</code></pre>
+
+  <h2>context 継続</h2>
+  <p>同じ <code>context_id</code> を使うと、前回のレビュー内容を踏まえた再レビューになります。解消済み、未解消、新規懸念が見分けやすくなります。</p>
+  <pre><code>uv run python a2a/demo/client.py --context-id review-session --text "このPRのリスクをレビューして: 認証ミドルウェアを追加し、全APIに適用した"
+uv run python a2a/demo/client.py --context-id review-session --text "指摘を踏まえて認証エラー時のハンドリングを修正しました。再レビューしてください。"</code></pre>
+
+  <h2>task 状態取得</h2>
+  <p><code>client.py</code> は送信直後に <code>get_task</code> を呼び、現在の状態を表示します。</p>
+  <pre><code>uv run python a2a/demo/client.py --text "この変更のテスト観点をレビューしてください: キャッシュ層を追加した"</code></pre>
+
+  <h2>task キャンセル</h2>
+  <p>通常のレビュー依頼に対しても、クライアント側から <code>cancel_task</code> を送れます。</p>
+  <pre><code>uv run python a2a/demo/client.py --text "このPRのリスクを詳しくレビューしてください: API ゲートウェイ配下の認証処理を全面的に見直した" --cancel-after 2</code></pre>
+
+  <div class="warning">
+    通常のレビュー依頼は Azure OpenAI API を呼び出します。
+    <code>AZURE_OPENAI_ENDPOINT</code> を設定し、事前に <code>az login</code> を実行してください。
+  </div>
+
+  <h2>前提</h2>
+  <ul>
+    <li><code>a2a/demo</code> は <code>agent-framework/demo</code> から import しません。</li>
+    <li>LLM 呼び出しには OpenAI SDK の <code>AsyncOpenAI</code> と Responses API を使います。</li>
+    <li><code>OPENAI_MODEL</code> 環境変数を設定すると、<code>--model</code> 未指定時の既定モデルを変更できます。</li>
+  </ul>
+</body>
+
+</html>

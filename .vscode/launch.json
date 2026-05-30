@@ -41,6 +41,25 @@
             "justMyCode": true
         },
         {
+            "name": "Demo A2A",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/a2a/demo/server.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "41250",
+                "--model",
+                "gpt-4.1-mini"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/a2a/demo"
+            },
+            "justMyCode": false
+        },
+        {
             "name": "Demo DevUI",
             "type": "debugpy",
             "request": "launch",
