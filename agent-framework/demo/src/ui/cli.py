@@ -32,6 +32,8 @@ class ModelSwitchResult:
     agent: Agent
     session: Any
     stream_renderer: "CLIStreamRenderer"
+    tool_provider: Callable[[], list[Any]]
+    all_tools_provider: Callable[[], list[Any]]
     model_name: str
     provider_family: str
 
@@ -122,6 +124,8 @@ class DemoChatCLI:
         session: Any,
         code_interpreter_status: str,
         stream_renderer: "CLIStreamRenderer",
+        tool_provider: Callable[[], list[Any]],
+        all_tools_provider: Callable[[], list[Any]],
         model_name: str = "",
         provider_family: str = "",
         model_switcher: Callable[[str], Awaitable[ModelSwitchResult]] | None = None,
@@ -134,6 +138,8 @@ class DemoChatCLI:
         self._attachments = AttachmentBuffer()
         self._code_interpreter_status = code_interpreter_status
         self._stream_renderer = stream_renderer
+        self._tool_provider = tool_provider
+        self._all_tools_provider = all_tools_provider
         self._model_switcher = model_switcher or self._missing_model_switcher
         self._pending_tool_approval_context = (
             pending_tool_approval_context
@@ -208,20 +214,37 @@ class DemoChatCLI:
         contents = [Content.from_text(text=user_input), *self._attachments.consume()]
         return Message(role="user", contents=contents)
 
-    async def _run_agent(self, message: Message | Sequence[Message]) -> None:
+    async def _run_agent(
+        self,
+        message: Message | Sequence[Message],
+        *,
+        tools: list[Any] | None = None,
+    ) -> None:
         current_input: Message | Sequence[Message] = message
+        exposed_tools = tools if tools is not None else self._tool_provider()
         with tracer.start_as_current_span("chat_request"):
             while True:
-                approval_context = await self._stream_agent_run(current_input)
+                approval_context = await self._stream_agent_run(
+                    current_input,
+                    tools=exposed_tools,
+                )
                 if not approval_context.requests:
                     return
                 current_input = self._build_tool_approval_messages(approval_context)
 
     async def _stream_agent_run(
-        self, message: Message | Sequence[Message]
+        self,
+        message: Message | Sequence[Message],
+        *,
+        tools: list[Any],
     ) -> ToolApprovalContext:
         self._stream_renderer.start()
-        stream = self._agent.run(message, session=self._session, stream=True)
+        stream = self._agent.run(
+            message,
+            session=self._session,
+            stream=True,
+            tools=tools,
+        )
         async for chunk in stream:
             self._stream_renderer.render(chunk.contents, chunk.text)
         self._stream_renderer.finish()
@@ -239,7 +262,7 @@ class DemoChatCLI:
         self._pending_tool_approval_context = ToolApprovalContext(
             assistant_messages=[], requests=[]
         )
-        await self._run_agent(approval_messages)
+        await self._run_agent(approval_messages, tools=self._all_tools_provider())
 
     def _build_tool_approval_messages(
         self, approval_context: ToolApprovalContext
@@ -379,6 +402,8 @@ class DemoChatCLI:
         self._agent = result.agent
         self._session = result.session
         self._stream_renderer = result.stream_renderer
+        self._tool_provider = result.tool_provider
+        self._all_tools_provider = result.all_tools_provider
         self._model_name = result.model_name
         self._provider_family = result.provider_family
         self._print_status(

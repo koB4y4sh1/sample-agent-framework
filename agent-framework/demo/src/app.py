@@ -42,6 +42,7 @@ class DemoConfig:
     compaction_summary_threshold: int = 2
     compaction_keep_last_groups: int = 20
     reasoning_policy: ReasoningPolicy = "as_text"
+    progressive_tool_exposure: bool = True
 
 
 class DemoApplication:
@@ -112,6 +113,7 @@ class DemoApplication:
             config=DemoAgentConfig(
                 model_name=self.config.model,
                 default_options=self.model_settings.default_options,
+                expose_default_tools=not self.config.progressive_tool_exposure,
             ),
             client=self.chat_client,
             history_provider=self.history_provider,
@@ -133,6 +135,12 @@ class DemoApplication:
 
     def create_session(self, session_id: str | None = None):
         return self.agent.create_session(session_id=session_id)
+
+    def progressive_tools(self):
+        return self.tool.build_progressive_tools()
+
+    def all_tools(self):
+        return self.tool.build_tools()
 
     async def get_pending_tool_approval_context(self, session_id: str | None):
         messages = await self.store.read_messages(session_id)

@@ -348,6 +348,8 @@ class TestToolApprovals:
             session=object(),
             code_interpreter_status="",
             stream_renderer=_DummyRenderer(),  # type: ignore[arg-type]
+            tool_provider=lambda _: [],
+            all_tools_provider=lambda: [],
         )
         monkeypatch.setattr("builtins.input", lambda: "y")
 

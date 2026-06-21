@@ -23,6 +23,8 @@ async def run_cli() -> None:
             agent=switched.app.agent,
             session=switched.session,
             stream_renderer=switched.app.stream_renderer,
+            tool_provider=switched.app.progressive_tools,
+            all_tools_provider=switched.app.all_tools,
             model_name=switched.model_name,
             provider_family=switched.provider_family,
         )
@@ -34,6 +36,8 @@ async def run_cli() -> None:
         provider_family=runtime.provider_family,
         code_interpreter_status=runtime.app.skills.describe(),
         stream_renderer=runtime.app.stream_renderer,
+        tool_provider=runtime.app.progressive_tools,
+        all_tools_provider=runtime.app.all_tools,
         model_switcher=switch_model,
         pending_tool_approval_context=(
             await runtime.app.get_pending_tool_approval_context(runtime.session_id)

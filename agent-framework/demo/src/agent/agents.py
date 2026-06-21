@@ -10,6 +10,7 @@ from agent_framework import Agent, BaseChatClient
 class DemoAgentConfig:
     model_name: str
     default_options: Any
+    expose_default_tools: bool = False
 
 
 class DemoAgent:
@@ -56,8 +57,6 @@ class DemoAgent:
                 "If multimodal input exists, reference it explicitly."
             ),
             context_providers=context_providers,
-            tools=[
-                *self._tool.build_tools(),
-            ],
+            tools=self._tool.build_tools() if self._config.expose_default_tools else [],
             default_options=self._config.default_options,
         )

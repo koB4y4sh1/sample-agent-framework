@@ -51,6 +51,7 @@ class StreamingTextView:
 class ChatRuntimeState:
     runtime: DemoSessionRuntime
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    active_tools: list[Any] | None = None
     pending_approval: ToolApprovalContext = field(
         default_factory=lambda: ToolApprovalContext(
             assistant_messages=[],
@@ -347,12 +348,22 @@ class ChatPage:
             self._pending_requests,
             approvals,
         )
+        state = await self._manager.get(
+            session_id=self._session_id,
+            model_name=str(self._model_select.value),
+        )
+        tools = state.active_tools or state.runtime.app.all_tools()
         self._pending_requests = []
         self._pending_approvals = {}
         self._approval_status_labels = {}
-        await self._run_agent(message)
+        await self._run_agent(message, tools=tools)
 
-    async def _run_agent(self, message: Message | Sequence[Message]) -> None:
+    async def _run_agent(
+        self,
+        message: Message | Sequence[Message],
+        *,
+        tools: list[Any] | None = None,
+    ) -> None:
         if self._is_running or self._client_deleted:
             return
         self._is_running = True
@@ -364,6 +375,8 @@ class ChatPage:
             if self._client_deleted:
                 return
             self._status.text = "Running"
+            exposed_tools = tools if tools is not None else state.runtime.app.progressive_tools()
+            state.active_tools = exposed_tools
             assistant_column = self._add_message_shell("assistant", sent=False)
             text_view: StreamingTextView | None = None
 
@@ -372,6 +385,7 @@ class ChatPage:
                     message,
                     session=state.runtime.session,
                     stream=True,
+                    tools=exposed_tools,
                 )
                 async for chunk in stream:
                     if self._client_deleted:
@@ -410,6 +424,7 @@ class ChatPage:
                 self._refresh_sessions()
                 return
 
+            state.active_tools = None
             self._status.text = "Idle"
             self._refresh_sessions()
         except Exception as error:

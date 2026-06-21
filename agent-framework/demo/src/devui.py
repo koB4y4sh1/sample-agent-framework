@@ -26,7 +26,7 @@ def main() -> None:
 
     model = select_model_by_input()
     app = DemoApplication(
-        config=DemoConfig(model=model),
+        config=DemoConfig(model=model, progressive_tool_exposure=False),
     )
 
     serve(
