@@ -8,6 +8,7 @@ from agent import (
     DemoCompactionConfig,
     DemoCompactionProvider,
     DemoSkills,
+    create_content_understanding_context_provider_from_env,
     ExecutionContextProvider,
     AnthropicReplayConverter,
     LocalHistoryProvider,
@@ -88,6 +89,7 @@ class DemoApplication:
             provider_family=self.provider_family,
             history_source_id=self.history_provider.source_id,
         )
+        self.content_understanding_provider = create_content_understanding_context_provider_from_env()
         self.preference_policy_provider = PreferencePolicyProvider()
         self.compaction_provider = DemoCompactionProvider(
             history_source_id=self.history_provider.source_id,
@@ -117,6 +119,11 @@ class DemoApplication:
             memory_provider=self.memory_provider,
             extra_context_providers=[
                 self.execution_context_provider,
+                *(
+                    [self.content_understanding_provider]
+                    if self.content_understanding_provider is not None
+                    else []
+                ),
                 self.preference_policy_provider,
             ],
             skills_provider=self.skills_provider,

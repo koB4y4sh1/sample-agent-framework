@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Sequence
 from typing import Any, ClassVar
 from uuid import uuid8
@@ -18,7 +19,7 @@ from .store.base import MessageStore
 
 
 class LocalHistoryProvider(HistoryProvider):
-    """会話履歴を永続化 Provider"""
+    """会話履歴を MessageStore に永続化する Provider。"""
 
     DEFAULT_SOURCE_ID: ClassVar[str] = uuid8().hex
 
@@ -51,8 +52,8 @@ class LocalHistoryProvider(HistoryProvider):
         state: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> list[Message]:
-        """保存済みメッセージの取得"""
-        stored_messages = await self._store.read_messages(session_id)
+        """保存済みメッセージを取得する。"""
+        stored_messages = await _maybe_await(self._store.read_messages(session_id))
         return stored_messages
 
     async def save_messages(
@@ -63,15 +64,15 @@ class LocalHistoryProvider(HistoryProvider):
         state: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        """メッセージの保存"""
-        existing_messages = await self._store.read_messages(session_id)
+        """メッセージを既存履歴に追加して保存する。"""
+        existing_messages = await _maybe_await(self._store.read_messages(session_id))
         combined_messages = [*existing_messages, *messages]
         combined_messages = self._message_normalizer.normalize_messages(
             combined_messages
         )
         if self._max_messages is not None:
             combined_messages = combined_messages[-self._max_messages :]
-        await self._store.write_messages(session_id, combined_messages)
+        await _maybe_await(self._store.write_messages(session_id, combined_messages))
 
     async def after_run(
         self,
@@ -81,7 +82,7 @@ class LocalHistoryProvider(HistoryProvider):
         context: SessionContext,
         state: dict[str, Any],
     ) -> None:
-        """Store messages with execution metadata from the run context."""
+        """実行後、入力・出力メッセージを履歴として保存する。"""
         messages_to_store: list[Message] = []
         messages_to_store.extend(self._get_context_messages_to_store(context))
         if self.store_inputs:
@@ -121,3 +122,9 @@ class LocalHistoryProvider(HistoryProvider):
         ):
             return list(executed_input_messages)
         return list(context.input_messages)
+
+
+async def _maybe_await(value: Any) -> Any:
+    if inspect.isawaitable(value):
+        return await value
+    return value

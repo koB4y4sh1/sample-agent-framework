@@ -44,6 +44,10 @@ class BaseRender(ABC):
     def render_content(self, content: Content) -> list[RenderEvent]:
         return self.render([content])
 
+    def _append_text_event(self, events: list[RenderEvent], text: str | None) -> None:
+        if text and not any(event.kind == "text" and event.text == text for event in events):
+            events.append(RenderEvent(kind="text", text=text))
+
     def _common_event(self, content: Content) -> RenderEvent | None:
         content_type = str(content.type)
         if content_type == "data":
@@ -142,8 +146,7 @@ class AnthropicRender(BaseRender):
             else:
                 events.append(self._unknown_event(content))
 
-        if text:
-            events.append(RenderEvent(kind="text", text=text))
+        self._append_text_event(events, text)
         return events
 
     def _anthropic_tool_result_events(self, content: Content) -> list[RenderEvent]:
@@ -233,8 +236,7 @@ class OpenAIRender(BaseRender):
             else:
                 events.append(self._unknown_event(content))
 
-        if text:
-            events.append(RenderEvent(kind="text", text=text))
+        self._append_text_event(events, text)
         return events
 
 
@@ -294,8 +296,7 @@ class GeminiRender(BaseRender):
             else:
                 events.append(self._unknown_event(content))
 
-        if text:
-            events.append(RenderEvent(kind="text", text=text))
+        self._append_text_event(events, text)
         return events
 
 

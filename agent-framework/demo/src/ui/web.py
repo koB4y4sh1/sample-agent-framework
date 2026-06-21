@@ -11,9 +11,10 @@ from typing import Any
 from uuid import uuid4
 
 from agent_framework import Content, Message
-from nicegui import ui
+from nicegui import Client, context, ui
 from nicegui.events import GenericEventArguments, UploadEventArguments
 
+from agent.contexts import create_cu_attachment_content
 from agent.store import LocalStore
 from agent.store.local import MEMORY_ROOT_DIR
 from app import DemoSessionRuntime
@@ -91,6 +92,7 @@ class ChatRuntimeManager:
 class ChatPage:
     def __init__(self, manager: ChatRuntimeManager) -> None:
         self._manager = manager
+        self._client: Client = context.client
         self._attachments: list[Attachment] = []
         self._pending_requests: list[Content] = []
         self._pending_approvals: dict[int, bool] = {}
@@ -109,6 +111,10 @@ class ChatPage:
         }
 
         self._build()
+
+    @property
+    def _client_deleted(self) -> bool:
+        return self._client.is_deleted
 
     def _build(self) -> None:
         ui.add_css(
@@ -264,7 +270,11 @@ class ChatPage:
                 )
 
     async def _reload_history(self) -> None:
+        if self._client_deleted:
+            return
         messages = await self._manager.store.read_messages(self._session_id)
+        if self._client_deleted:
+            return
         self._render_history(messages)
         self._restore_pending_approval(messages)
 
@@ -284,10 +294,10 @@ class ChatPage:
 
         contents = [Content.from_text(text)] if text else []
         contents.extend(
-            Content.from_data(
-                data=item.data,
+            create_cu_attachment_content(
+                name=item.name,
                 media_type=item.media_type,
-                additional_properties={"filename": item.name},
+                data=item.data,
             )
             for item in self._attachments
         )
@@ -343,7 +353,7 @@ class ChatPage:
         await self._run_agent(message)
 
     async def _run_agent(self, message: Message | Sequence[Message]) -> None:
-        if self._is_running:
+        if self._is_running or self._client_deleted:
             return
         self._is_running = True
         try:
@@ -351,6 +361,8 @@ class ChatPage:
                 session_id=self._session_id,
                 model_name=str(self._model_select.value),
             )
+            if self._client_deleted:
+                return
             self._status.text = "Running"
             assistant_column = self._add_message_shell("assistant", sent=False)
             text_view: StreamingTextView | None = None
@@ -362,14 +374,20 @@ class ChatPage:
                     stream=True,
                 )
                 async for chunk in stream:
+                    if self._client_deleted:
+                        return
                     text_view = await self._render_chunk(
                         assistant_column,
                         chunk.contents,
                         chunk.text,
                         text_view,
                     )
+                    if self._client_deleted:
+                        return
 
                 final_response = await stream.get_final_response()
+                if self._client_deleted:
+                    return
                 state.pending_approval = pending_tool_approval_context(
                     final_response.messages
                 )
@@ -377,6 +395,8 @@ class ChatPage:
             stored_messages = await state.runtime.app.store.read_messages(
                 state.runtime.session_id
             )
+            if self._client_deleted:
+                return
             self._render_history(stored_messages or list(final_response.messages))
 
             if state.pending_approval.requests:
@@ -393,8 +413,9 @@ class ChatPage:
             self._status.text = "Idle"
             self._refresh_sessions()
         except Exception as error:
-            self._status.text = "Error"
-            ui.notify(str(error), type="negative", multi_line=True)
+            if not self._client_deleted:
+                self._status.text = "Error"
+                ui.notify(str(error), type="negative", multi_line=True)
             raise
         finally:
             self._is_running = False
@@ -446,6 +467,8 @@ class ChatPage:
     ) -> StreamingTextView | None:
         with column:
             for event in self._current_renderer.render(contents, text):
+                if self._client_deleted:
+                    return text_view
                 text_view = await self._render_event(event, text_view=text_view)
         return text_view
 
@@ -455,6 +478,8 @@ class ChatPage:
         *,
         text_view: StreamingTextView | None = None,
     ) -> StreamingTextView | None:
+        if self._client_deleted:
+            return text_view
         if event.kind == "text":
             return await self._append_stream_text(event.text, text_view)
         if event.kind == "reasoning":
@@ -485,12 +510,16 @@ class ChatPage:
         text: str,
         text_view: StreamingTextView | None,
     ) -> StreamingTextView:
+        if self._client_deleted:
+            return text_view or StreamingTextView(element_id="")
         if text_view is None:
             text_view = StreamingTextView(element_id=f"stream-{uuid4().hex}")
             ui.html(
                 f'<span id="{text_view.element_id}"></span>',
                 sanitize=False,
             ).classes("whitespace-pre-wrap break-words leading-relaxed")
+        if self._client_deleted:
+            return text_view
         await ui.run_javascript(
             "document.getElementById("
             f"{json.dumps(text_view.element_id)}"
@@ -587,6 +616,19 @@ class ChatPage:
                 media_type=str(media_type),
                 filename=filename,
                 data=data,
+                uri=uri if isinstance(uri, str) else None,
+            )
+            return
+        if content_type == "uri":
+            value = content.to_dict()
+            media_type = value.get("media_type") or getattr(
+                content, "media_type", "application/octet-stream"
+            )
+            filename = str(content.additional_properties.get("filename") or "attachment")
+            uri = value.get("uri")
+            self._render_attachment(
+                media_type=str(media_type),
+                filename=filename,
                 uri=uri if isinstance(uri, str) else None,
             )
             return

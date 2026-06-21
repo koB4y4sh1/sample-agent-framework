@@ -1,11 +1,15 @@
 from .agents import DemoAgent, DemoAgentConfig
 from .compaction import DemoCompactionConfig, DemoCompactionProvider
 from .contexts import (
+    ContentUnderstandingContextProvider,
+    ContentUnderstandingInputConfig,
     ExecutionContextProvider,
     MessageConversionContextProvider,
     PreferencePolicyProvider,
     UserProfile,
     UserProfileContextProvider,
+    create_content_understanding_context_provider_from_env,
+    create_cu_attachment_content,
 )
 from .contexts.message_converter import (
     AnthropicMessageConverter,
@@ -31,6 +35,8 @@ from .tools import ToolRegistry
 
 __all__ = [
     "UserProfile",
+    "ContentUnderstandingContextProvider",
+    "ContentUnderstandingInputConfig",
     "UserProfileContextProvider",
     "ExecutionContextProvider",
     "MessageConversionContextProvider",
@@ -58,4 +64,6 @@ __all__ = [
     "create_token_provider",
     "create_openai_chat_client",
     "create_gemini_chat_client",
+    "create_content_understanding_context_provider_from_env",
+    "create_cu_attachment_content",
 ]
