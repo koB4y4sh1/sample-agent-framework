@@ -10,6 +10,11 @@ from agent_framework import Agent, Content, Message
 from opentelemetry import trace
 from settings import load_model_settings_list
 from ui.approval import (
+    APPROVAL_ALWAYS_ARGUMENTS,
+    APPROVAL_ALWAYS_TOOL,
+    APPROVAL_DENY,
+    APPROVAL_ONCE,
+    ApprovalDecision,
     ToolApprovalContext,
     build_tool_approval_response_message,
     format_tool_approval_prompt,
@@ -274,7 +279,7 @@ class DemoChatCLI:
             approval_context.requests, approvals
         )
 
-    def _read_tool_approval(self, request: Content) -> bool:
+    def _read_tool_approval(self, request: Content) -> ApprovalDecision:
         while True:
             print_color(
                 format_tool_approval_prompt(request),
@@ -283,11 +288,15 @@ class DemoChatCLI:
                 flush=True,
             )
             answer = input().strip().lower()
-            if answer in {"y", "yes"}:
-                return True
-            if answer in {"n", "no"}:
-                return False
-            self._print_status("[Error] Enter Y or N.", color="red")
+            if answer in {"0", "n", "no", "deny"}:
+                return APPROVAL_DENY
+            if answer in {"1", "y", "yes", "once"}:
+                return APPROVAL_ONCE
+            if answer in {"2", "args", "arguments"}:
+                return APPROVAL_ALWAYS_ARGUMENTS
+            if answer in {"3", "tool", "always"}:
+                return APPROVAL_ALWAYS_TOOL
+            self._print_status("[Error] Enter 0, 1, 2, or 3.", color="red")
 
     def _print_help(self) -> None:
         self._print_status("[Start] Anthropic demo chat", color="green")

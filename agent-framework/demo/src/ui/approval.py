@@ -3,17 +3,38 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
-from agent_framework import Content, Message
-
-APPROVAL_REQUEST_TYPE = "function_approval_request"
-APPROVAL_PROMPT_TEXT = (
-    "[Approve] {tool_name} \u3092\u5b9f\u884c\u3057\u3066\u3082"
-    "\u3088\u308d\u3057\u3044\u3067\u3057\u3087\u3046\u304b\uff1f"
-    "{arguments} Y/N: "
+from agent.middleware import allow_tool_request
+from agent_framework import (
+    Content,
+    Message,
+    create_always_approve_tool_response,
+    create_always_approve_tool_with_arguments_response,
 )
 
+APPROVAL_REQUEST_TYPE = "function_approval_request"
+ApprovalDecision = Literal["deny", "once", "always_arguments", "always_tool"]
+ApprovalInput = ApprovalDecision | bool
+
+APPROVAL_DENY: ApprovalDecision = "deny"
+APPROVAL_ONCE: ApprovalDecision = "once"
+APPROVAL_ALWAYS_ARGUMENTS: ApprovalDecision = "always_arguments"
+APPROVAL_ALWAYS_TOOL: ApprovalDecision = "always_tool"
+APPROVAL_PROMPT_TEXT = (
+    "[Approve] {tool_name} を実行してもよろしいでしょうか？"
+    "{arguments}\n"
+    "  0: 拒否\n"
+    "  1: このリクエストのみ許可\n"
+    "  2: 引数の実行を許可する\n"
+    "  3: このツール実行を自動許可する\n"
+    "選択 [0-3]: "
+)
+APPROVAL_ALLOW_OPTIONS: dict[str, str] = {
+    APPROVAL_ONCE: "このリクエストのみ許可",
+    APPROVAL_ALWAYS_ARGUMENTS: "引数の実行を許可する",
+    APPROVAL_ALWAYS_TOOL: "このツール実行を自動許可する",
+}
 
 @dataclass(slots=True)
 class ToolApprovalContext:
@@ -45,7 +66,7 @@ def pending_tool_approval_context(messages: Sequence[Message]) -> ToolApprovalCo
 
 
 def build_tool_approval_response_message(
-    requests: Sequence[Content], approvals: Sequence[bool]
+    requests: Sequence[Content], approvals: Sequence[ApprovalInput]
 ) -> Message:
     if len(requests) != len(approvals):
         raise ValueError("requests and approvals must have the same length.")
@@ -53,10 +74,40 @@ def build_tool_approval_response_message(
     return Message(
         role="user",
         contents=[
-            request.to_function_approval_response(approved)
-            for request, approved in zip(requests, approvals, strict=True)
+            build_tool_approval_response(request, approval)
+            for request, approval in zip(requests, approvals, strict=True)
         ],
     )
+
+
+def build_tool_approval_response(request: Content, approval: ApprovalInput) -> Content:
+    decision = normalize_approval_decision(approval)
+    if decision == APPROVAL_DENY:
+        return request.to_function_approval_response(False)
+    if decision == APPROVAL_ONCE:
+        return request.to_function_approval_response(True)
+    if decision == APPROVAL_ALWAYS_ARGUMENTS:
+        allow_tool_request(request, "tool_with_arguments")
+        return create_always_approve_tool_with_arguments_response(request)
+    if decision == APPROVAL_ALWAYS_TOOL:
+        allow_tool_request(request, "tool")
+        return create_always_approve_tool_response(request)
+    raise ValueError(f"Unsupported approval decision: {decision}")
+
+
+def normalize_approval_decision(value: ApprovalInput) -> ApprovalDecision:
+    if value is True:
+        return APPROVAL_ONCE
+    if value is False:
+        return APPROVAL_DENY
+    if value in {
+        APPROVAL_DENY,
+        APPROVAL_ONCE,
+        APPROVAL_ALWAYS_ARGUMENTS,
+        APPROVAL_ALWAYS_TOOL,
+    }:
+        return value
+    raise ValueError(f"Unsupported approval decision: {value}")
 
 
 def format_tool_approval_prompt(request: Content) -> str:

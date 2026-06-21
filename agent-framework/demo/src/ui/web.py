@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import mimetypes
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import partial
@@ -19,6 +20,10 @@ from agent.store import LocalStore
 from agent.store.local import MEMORY_ROOT_DIR
 from app import DemoSessionRuntime
 from ui.approval import (
+    APPROVAL_ALLOW_OPTIONS,
+    APPROVAL_DENY,
+    APPROVAL_ONCE,
+    ApprovalDecision,
     ToolApprovalContext,
     build_tool_approval_response_message,
     pending_tool_approval_context,
@@ -27,6 +32,8 @@ from ui.approval import (
 )
 from ui.render_event import RenderEvent, UIResolver
 from settings import load_model_settings_list
+from ui.admin import create_admin_ui
+from ui.user import create_user_ui
 
 
 @dataclass(slots=True)
@@ -96,7 +103,7 @@ class ChatPage:
         self._client: Client = context.client
         self._attachments: list[Attachment] = []
         self._pending_requests: list[Content] = []
-        self._pending_approvals: dict[int, bool] = {}
+        self._pending_approvals: dict[int, ApprovalDecision] = {}
         self._approval_status_labels: dict[int, Any] = {}
         self._is_running = False
         self._models = load_model_settings_list()
@@ -138,6 +145,7 @@ class ChatPage:
             .attachment-preview { border: 1px solid #cfd8d3; border-radius: 8px; }
             .tool-panel { background: #eef4ff; border: 1px solid #cad9f2; border-radius: 8px; }
             .approval-panel { background: #fff8e8; border: 1px solid #e0b65f; border-radius: 8px; }
+            .user-nav-button { justify-content: flex-start; min-height: 44px; }
             """
         )
         ui.query("body").classes("overflow-hidden")
@@ -183,6 +191,15 @@ class ChatPage:
                     on_click=self._clear_view,
                 ).props("outline").classes("w-full")
                 self._status = ui.label("Idle").classes("text-sm text-gray-600")
+                ui.space().classes("flex-1")
+                ui.button(
+                    _current_user_name(),
+                    icon="person",
+                    on_click=lambda: ui.navigate.to("/user"),
+                ).props("flat no-caps align-left").classes(
+                    "user-nav-button w-full text-gray-800"
+                )
+                ui.tooltip("User settings")
 
             with ui.column().classes("flex-1 h-full"):
                 self._messages = ui.column().classes(
@@ -315,7 +332,7 @@ class ChatPage:
         if args.get("key") == "Enter" and not args.get("shiftKey"):
             await self._send_message()
 
-    async def _set_tool_approval(self, index: int, approved: bool) -> None:
+    async def _set_tool_approval(self, index: int, decision: ApprovalDecision) -> None:
         if not self._pending_requests:
             ui.notify("No pending approval request.", type="warning")
             return
@@ -323,14 +340,14 @@ class ChatPage:
             ui.notify("Invalid approval request.", type="warning")
             return
 
-        self._pending_approvals[index] = approved
+        self._pending_approvals[index] = decision
         status_label = self._approval_status_labels.get(index)
         if status_label is not None:
-            status_label.text = "Approved" if approved else "Denied"
+            status_label.text = APPROVAL_ALLOW_OPTIONS.get(decision, "拒否")
             status_label.classes(
                 replace=(
                     "text-sm font-semibold text-green-700"
-                    if approved
+                    if decision != APPROVAL_DENY
                     else "text-sm font-semibold text-red-700"
                 )
             )
@@ -357,6 +374,13 @@ class ChatPage:
         self._pending_approvals = {}
         self._approval_status_labels = {}
         await self._run_agent(message, tools=tools)
+
+    async def _approve_tool_with_selected_mode(self, index: int, mode_select: Any) -> None:
+        decision = str(mode_select.value or APPROVAL_ONCE)
+        if decision not in APPROVAL_ALLOW_OPTIONS:
+            ui.notify("Invalid approval mode.", type="warning")
+            return
+        await self._set_tool_approval(index, decision)  # type: ignore[arg-type]
 
     async def _run_agent(
         self,
@@ -560,7 +584,7 @@ class ChatPage:
             with ui.card().classes("approval-panel w-full max-w-5xl mx-auto p-3"):
                 ui.label("Tool approval").classes("font-semibold")
                 ui.label(
-                    "Choose Approve or Deny for each request. The run resumes automatically after all requests are decided."
+                    "Choose Deny, or choose an approval mode from the dropdown. The run resumes automatically after all requests are decided."
                 ).classes("text-sm text-gray-600")
                 for index, request in enumerate(requests):
                     with ui.card().classes("w-full p-3 bg-white"):
@@ -572,17 +596,22 @@ class ChatPage:
                                 "Pending"
                             ).classes("text-sm font-semibold text-amber-700")
                         ui.code(tool_approval_arguments(request)).classes("w-full")
-                        with ui.row().classes("gap-2"):
+                        with ui.row().classes("gap-2 items-center"):
+                            mode_select = ui.select(
+                                APPROVAL_ALLOW_OPTIONS,
+                                value=APPROVAL_ONCE,
+                                label="Approval mode",
+                            ).classes("min-w-72")
                             ui.button(
                                 "Approve",
                                 icon="check",
-                                on_click=partial(self._set_tool_approval, index, True),
+                                on_click=partial(self._approve_tool_with_selected_mode, index, mode_select),
                             )
                             ui.button(
                                 "Deny",
                                 icon="close",
                                 color="negative",
-                                on_click=partial(self._set_tool_approval, index, False),
+                                on_click=partial(self._set_tool_approval, index, APPROVAL_DENY),
                             )
 
     def _add_message_shell(self, role: str, *, sent: bool) -> ui.column:
@@ -698,6 +727,14 @@ def _data_uri_bytes(uri: Any) -> bytes | None:
         return None
 
 
+def _current_user_name() -> str:
+    for env_name in ("USERNAME", "USER", "LOGNAME"):
+        value = os.getenv(env_name, "").strip()
+        if value:
+            return value
+    return "demouser"
+
+
 _manager = ChatRuntimeManager()
 _page_registered = False
 
@@ -707,6 +744,8 @@ def create_chat_ui() -> None:
     if _page_registered:
         return
     _page_registered = True
+    create_admin_ui()
+    create_user_ui()
 
     @ui.page("/")
     def index() -> None:
