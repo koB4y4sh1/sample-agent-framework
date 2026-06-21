@@ -14,14 +14,34 @@
             "justMyCode": false
         },
         {
-            "name": "Demo App",
+            "name": "Demo App CLI",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/agent-framework/demo/src/main.py",
+            "args": [
+                "cli"
+            ],
+            "cwd": "${workspaceFolder}/agent-framework/demo",
             "console": "integratedTerminal",
             "env": {
                 "MCP_LOG_LEVEL": "DEBUG",
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/agent-framework/demo/src"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Demo App Web",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent-framework/demo/src/main.py",
+            "args": [
+                "web"
+            ],
+            "cwd": "${workspaceFolder}/agent-framework/demo",
+            "console": "integratedTerminal",
+            "env": {
+                "MCP_LOG_LEVEL": "DEBUG",
+                "PYTHONPATH": "${workspaceFolder}/agent-framework/demo/src"
             },
             "justMyCode": false
         },
@@ -70,6 +90,6 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
-        },
+        }
     ]
 }

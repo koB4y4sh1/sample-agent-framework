@@ -98,6 +98,9 @@ class UserProfileContextProvider(ContextProvider):
         if not candidate_messages:
             self._debug("after_run: no messages for profile update")
             return
+        if self._has_pending_approval_request(candidate_messages):
+            self._debug("after_run: skip refresh (pending tool approval)")
+            return
 
         self._debug(
             "after_run: extract profile "
@@ -206,6 +209,14 @@ class UserProfileContextProvider(ContextProvider):
         response = await self._analyser_client.get_response(analysis_messages, options={"max_tokens": 800,"response_format": UserProfile})
 
         return response.value
+
+    def _has_pending_approval_request(self, messages: list[Message]) -> bool:
+        if not messages:
+            return False
+        return any(
+            content.type == "function_approval_request"
+            for content in messages[-1].contents
+        )
 
     def _merge_profile(self, current: UserProfile, extracted: UserProfile) -> UserProfile:
         return UserProfile(

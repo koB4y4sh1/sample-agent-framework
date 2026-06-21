@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import importlib.util
 
-from chat_cli import (
-    DemoChatCLI,
+from ui.approval import (
     build_tool_approval_response_message,
     format_tool_approval_prompt,
     pending_tool_approval_context,
     pending_tool_approval_requests,
     ToolApprovalContext,
 )
+from ui.cli import DemoChatCLI
 from agent_framework import Content, Message
 
 

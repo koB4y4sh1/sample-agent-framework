@@ -23,9 +23,10 @@ from agent import (
     create_openai_chat_client,
     create_token_provider,
 )
-from chat_cli import pending_tool_approval_context
+from ui.approval import pending_tool_approval_context
 from settings import load_model_settings
-from ui import ProviderFamily, UIResolver
+from ui.cli import CLIStreamRenderer
+from ui.render_event import ProviderFamily, UIResolver
 
 
 @dataclass(slots=True)
@@ -104,7 +105,7 @@ class DemoApplication:
         self.tool = ToolRegistry(self.chat_client)
 
         self.stream_resolver = UIResolver(self.provider_family)
-        self.stream_renderer = self.stream_resolver.resolve()
+        self.stream_renderer = CLIStreamRenderer(self.stream_resolver.resolve())
         self.agent = DemoAgent(
             config=DemoAgentConfig(
                 model_name=self.config.model,

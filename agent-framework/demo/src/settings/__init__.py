@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ui import ProviderFamily
+from ui.render_event import ProviderFamily
 
 from .mcp import (
     LocalMCPTransport,

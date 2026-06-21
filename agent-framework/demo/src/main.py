@@ -1,12 +1,15 @@
 import asyncio
+import sys
+from collections.abc import Sequence
 
 from app import DemoSessionRuntime
 from bootstrap import CLIBootstrap
-from chat_cli import DemoChatCLI, ModelSwitchResult
 from observability import setup_observability
+from ui.cli import DemoChatCLI, ModelSwitchResult
+from ui.web import run_chat_ui
 
 
-async def main() -> None:
+async def run_cli() -> None:
     setup_observability()
     bootstrap_result = CLIBootstrap().run()
     runtime = DemoSessionRuntime.create(
@@ -41,5 +44,17 @@ async def main() -> None:
     await cli.run()
 
 
+def main(argv: Sequence[str] | None = None) -> None:
+    args = list(argv if argv is not None else sys.argv[1:])
+    mode = args[0] if args else "cli"
+    if mode == "cli":
+        asyncio.run(run_cli())
+        return
+    if mode == "web":
+        run_chat_ui()
+        return
+    raise SystemExit(f"Unsupported mode: {mode}. Use 'cli' or 'web'.")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
