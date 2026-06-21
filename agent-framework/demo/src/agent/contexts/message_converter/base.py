@@ -4,32 +4,29 @@ from collections.abc import Sequence
 
 from agent_framework import Content, Message
 
-from .reasoning_replay import ReasoningReplaySanitizer
-from .replay_payload_sanitizer import ReplayPayloadSanitizer
-from .types import ProviderFamily, ReasoningPolicy
+from ._normalizer import MessageHistoryNormalizer
+from ._reasoning_replay import ReasoningReplaySanitizer
+from ._replay_payload_sanitizer import ReplayPayloadSanitizer
+from ._types import ProviderFamily, ReasoningPolicy
 
 
-class ProviderMessageConverter:
-    """履歴 Message の再投入用変換
+class BaseProviderMessageConverter:
+    """保存済みの Message を、もう一度 LLM に渡せる形へ変換する基底クラス。
 
-    Agent Framework が保持する Message を、LLM へ再投入しやすいrole / content 構成へ変換
+    Agent Framework が保存する Message には、実行時の内部情報や provider 固有の
+    payload が混ざる。これをそのまま別の LLM 呼び出しに再投入すると、role の不整合や
+    provider が受け付けないフィールドで失敗することがある。
 
-    - content 種別に応じた role の再分類。
-        例: `function_call` は assistant、`function_result` は tool、
-        `function_approval_response` は user として扱う
-    - 再利用不要な内部情報の除去。
-        例: raw object、`fc_id` など
-    - tool result 内のネストした content に対する payload の整理
-        例: `additional_properties`、`raw_representation` の除去
-    - provider 差分を伴う reasoning の再投入可否判定と整形
-        再利用可能な場合のみ保持し、それ以外は `reasoning_policy` に従って、text 化または除外
+    このクラスの責務:
+    - content の種類に応じて role を決め直す
+      例: `function_call` は assistant、`function_result` は tool
+    - 再投入に不要な内部情報を落とす
+      例: `raw_representation`、一部の `additional_properties`
+    - reasoning を再利用できる場合は残し、できない場合は text 化または削除する
 
-    role の考え方自体は provider 非依存。
-    provider ごとの差分は主に reasoning と一部 payload の扱い。
-
-    対象外はメッセージ順序の補正。
-    tool call と tool result の対応付けや順序調整は、
-    `MessageHistoryNormalizer` の責務。
+    注意:
+    tool call と tool result の順序補正はここでは行わない。
+    それは `MessageHistoryNormalizer` の責務。
     """
 
     _DIRECT_ROLES = {"system", "user", "assistant"}
@@ -69,11 +66,11 @@ class ProviderMessageConverter:
         )
 
     def convert_messages(self, messages: Sequence[Message]) -> list[Message]:
-        """複数の MAF Message を provider replay 用の MAF Message リストへ変換する。
+        """複数の Message を、provider に再投入しやすい Message リストへ変換する。
 
-        1つの入力 Message に異なる role として渡すべき content が混在する場合があるため、
-        出力件数は入力件数と一致しない。例えば assistant message 内に `function_result` が
-        混ざっている場合、assistant message と tool message に分割される。
+        1つの Message が複数の Message に分かれることがある。
+        例: assistant の Message に `function_result` が混ざっている場合、
+        assistant Message と tool Message に分割する。
         """
         converted: list[Message] = []
         for message in messages:
@@ -81,16 +78,17 @@ class ProviderMessageConverter:
         return converted
 
     def convert_message(self, message: Message) -> list[Message]:
-        """単一の MAF Message を role ごとの provider replay 用 Message に変換する。
+        """1つの Message を、role ごとに整った Message リストへ変換する。
 
-        content ごとに不要な provider 内部情報を除去し、target provider で再利用できない
-        reasoning を `reasoning_policy` に従って処理する。変換後に有効な content が
-        残らない場合は空リストを返す。
+        content を1つずつ見て、不要な情報を落とし、正しい role を決める。
+        変換後に有効な content が残らなければ空リストを返す。
         """
         converted: list[Message] = []
         current_role: str | None = None
         current_contents: list[Content] = []
         source_provider_family = self._reasoning_sanitizer.source_provider_family(message)
+        # 承認要求の中には元の function_call が埋め込まれている。
+        # 同じ call_id の function_call がすでにある場合は、重複して再投入しない。
         function_call_ids = {
             content.call_id
             for content in message.contents
@@ -131,6 +129,7 @@ class ProviderMessageConverter:
         )
 
     def _content_role(self, original_role: str, content: Content) -> str | None:
+        """content の種類から、再投入時に使う role を決める。"""
         if content.type in self._ASSISTANT_CONTENT_TYPES:
             return "assistant"
         if content.type in self._TOOL_CONTENT_TYPES:
@@ -150,6 +149,7 @@ class ProviderMessageConverter:
         source_provider_family: ProviderFamily | None,
         existing_function_call_ids: set[str] | None = None,
     ) -> Content | None:
+        """provider に再投入してよい content だけを残し、危ない payload を掃除する。"""
         if content.type in self._DROP_CONTENT_TYPES:
             return None
         if content.type == "text_reasoning":
@@ -162,7 +162,7 @@ class ProviderMessageConverter:
         data["type"] = content.type
         self._payload_sanitizer.sanitize_content_data(data)
 
-        # ignore no text content, which may cause issues for some providers like Anthropic
+        # 空文字の text は provider によってエラー原因になるため捨てる。
         if data.get("type") == "text" and not data.get("text"):
             return None
 
@@ -174,6 +174,7 @@ class ProviderMessageConverter:
         return Content.from_dict(data)
 
     def _normalize_function_approval_request(self, data: dict, existing_function_call_ids: set[str]) -> dict:
+        """承認要求を、provider が扱いやすい function_call 形へ寄せる。"""
         function_call = data.get("function_call")
         if not isinstance(function_call, dict):
             return data
@@ -191,4 +192,12 @@ class ProviderMessageConverter:
         return normalized
 
 
-CommonMessageConverter = ProviderMessageConverter
+CommonMessageConverter = BaseProviderMessageConverter
+
+__all__ = [
+    "BaseProviderMessageConverter",
+    "CommonMessageConverter",
+    "MessageHistoryNormalizer",
+    "ProviderFamily",
+    "ReasoningPolicy",
+]

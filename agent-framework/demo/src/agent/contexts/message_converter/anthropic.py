@@ -5,14 +5,45 @@ from typing import Any
 
 from agent_framework import Content, Message
 
+from .base import BaseProviderMessageConverter, ReasoningPolicy
+
+
+class AnthropicMessageConverter(BaseProviderMessageConverter):
+    """Anthropic に再投入するための Message converter。
+
+    基本処理は `BaseProviderMessageConverter` に任せる。
+    ここでは target provider が Anthropic であることだけを明示する。
+    """
+
+    def __init__(
+        self,
+        *,
+        reasoning_policy: ReasoningPolicy = "as_text",
+        reasoning_label: str = "[reasoning]",
+    ) -> None:
+        super().__init__(
+            target_provider_family="anthropic",
+            reasoning_policy=reasoning_policy,
+            reasoning_label=reasoning_label,
+        )
+
 
 class AnthropicReplayConverter:
-    """Convert replay content types that Anthropic does not accept directly."""
+    """Anthropic が直接受け付けない tool content を function_call/result へ変換する。
+
+    例:
+    - `code_interpreter_tool_call` -> `function_call(name="code_execution")`
+    - `shell_tool_call` -> `function_call(name="bash")`
+
+    Anthropic 側では標準的な function tool として再投入した方が扱いやすいため、
+    provider 共通変換の後にこの追加変換をかける。
+    """
 
     _CODE_EXECUTION_TOOL_NAME = "code_execution"
     _SHELL_TOOL_NAME = "bash"
 
     def convert_messages(self, messages: Sequence[Message]) -> list[Message]:
+        """Message リスト内の Anthropic 非対応 content を変換する。"""
         return [self.convert_message(message) for message in messages]
 
     def convert_message(self, message: Message) -> Message:
@@ -25,6 +56,7 @@ class AnthropicReplayConverter:
         )
 
     def convert_content(self, content: Content) -> Content:
+        """Anthropic が扱いにくい content だけを変換し、それ以外はそのまま返す。"""
         if content.type == "code_interpreter_tool_call":
             return self._convert_code_interpreter_tool_call(content)
         if content.type == "shell_tool_call":
@@ -36,6 +68,7 @@ class AnthropicReplayConverter:
         return content
 
     def _convert_code_interpreter_tool_call(self, content: Content) -> Content:
+        """code interpreter の呼び出しを通常の function_call に見せる。"""
         call_id = self._call_id(content)
         if call_id is None:
             return content
@@ -48,6 +81,7 @@ class AnthropicReplayConverter:
         )
 
     def _convert_shell_tool_call(self, content: Content) -> Content:
+        """shell 実行の呼び出しを通常の function_call に見せる。"""
         call_id = self._call_id(content)
         if call_id is None:
             return content
@@ -65,6 +99,7 @@ class AnthropicReplayConverter:
         )
 
     def _convert_code_interpreter_tool_result(self, content: Content) -> Content:
+        """code interpreter の結果を通常の function_result に見せる。"""
         call_id = self._call_id(content)
         if call_id is None:
             return content
@@ -76,6 +111,7 @@ class AnthropicReplayConverter:
         )
 
     def _convert_shell_tool_result(self, content: Content) -> Content:
+        """shell 実行の結果を通常の function_result に見せる。"""
         call_id = self._call_id(content)
         if call_id is None:
             return content
@@ -100,6 +136,7 @@ class AnthropicReplayConverter:
         return [self._content_payload(content) for content in contents or []]
 
     def _content_payload(self, content: Any) -> Any:
+        """ネストした Content を、再投入しやすい素朴な dict/list/scalar に落とす。"""
         if isinstance(content, Content):
             data = content.to_dict(exclude_none=True)
         elif isinstance(content, Mapping):
@@ -111,3 +148,6 @@ class AnthropicReplayConverter:
             data.pop("additional_properties", None)
         data.pop("raw_representation", None)
         return data
+
+
+__all__ = ["AnthropicMessageConverter", "AnthropicReplayConverter"]

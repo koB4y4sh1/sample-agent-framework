@@ -10,7 +10,11 @@ ContentSanitizer: TypeAlias = Callable[[Content], Content | None]
 
 
 class ReplayPayloadSanitizer:
-    """Content payloads を provider replay 用に安全な dict/list/scalar へ落とす。"""
+    """Content の payload を、provider に再投入しやすい値へ掃除する helper。
+
+    Message の中には、Python object や raw response など、そのまま JSON 化しにくい値が
+    入ることがある。provider に渡す前に dict/list/scalar へ寄せる。
+    """
 
     _DROPPED_CONTENT_ADDITIONAL_PROPERTIES = {"fc_id"}
     _NESTED_PAYLOAD_KEYS = ("items", "inputs", "outputs", "output", "result")
@@ -23,6 +27,7 @@ class ReplayPayloadSanitizer:
         self._sanitize_content = sanitize_content
 
     def sanitize_content_data(self, data: dict[str, Any]) -> None:
+        """Content の dict 表現から、再投入に不要または危険な値を落とす。"""
         additional_properties = data.get("additional_properties")
         if isinstance(additional_properties, Mapping):
             cleaned = {
@@ -50,11 +55,13 @@ class ReplayPayloadSanitizer:
                 data[key] = self.sanitize_nested_payload(data[key])
 
     def normalize_arguments(self, arguments: Any) -> Any:
+        """tool arguments は provider が扱いやすいように JSON 文字列へ寄せる。"""
         if isinstance(arguments, Mapping):
             return self._to_json(arguments)
         return self.sanitize_value(arguments)
 
     def sanitize_value(self, value: Any) -> Any:
+        """任意の値を、JSON に近い素朴な値へ変換する。"""
         if isinstance(value, Content):
             sanitized = self._sanitize_content(value)
             return sanitized.to_dict(exclude_none=True) if sanitized is not None else None
@@ -70,6 +77,7 @@ class ReplayPayloadSanitizer:
         return str(value)
 
     def sanitize_nested_payload(self, value: Any) -> Any:
+        """tool result 内などにネストした payload を再帰的に掃除する。"""
         if isinstance(value, Content):
             sanitized = self._sanitize_content(value)
             if sanitized is None:
@@ -87,6 +95,7 @@ class ReplayPayloadSanitizer:
         return self.sanitize_value(value)
 
     def sanitize_mapping(self, value: Mapping[str, Any]) -> dict[str, Any]:
+        """mapping の key を文字列化しつつ、value を安全な形へ変換する。"""
         return {str(key): self.sanitize_value(item) for key, item in value.items()}
 
     def _to_json(self, value: Any) -> str:

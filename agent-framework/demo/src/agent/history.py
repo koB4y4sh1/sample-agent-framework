@@ -12,8 +12,8 @@ from agent_framework import (
     SupportsAgentRun,
 )
 
-from .contexts.message_conversion import EXECUTED_INPUT_MESSAGES_METADATA_KEY
-from .messages import MessageHistoryNormalizer
+from .contexts.message_converter import EXECUTED_INPUT_MESSAGES_METADATA_KEY
+from .contexts.message_converter import MessageHistoryNormalizer
 from .store.base import MessageStore
 
 

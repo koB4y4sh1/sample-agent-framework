@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agent.messages import (
+from agent.contexts.message_converter import (
     CommonMessageConverter,
     ProviderMessageConverter,
 )

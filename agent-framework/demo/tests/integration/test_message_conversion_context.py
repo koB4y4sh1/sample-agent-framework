@@ -11,7 +11,7 @@ from agent.contexts import (
     MessageConversionContextProvider,
 )
 from agent.history import LocalHistoryProvider, MessageStore
-from agent.messages import AnthropicReplayConverter, CommonMessageConverter, ProviderMessageConverter
+from agent.contexts.message_converter import AnthropicReplayConverter, CommonMessageConverter, ProviderMessageConverter
 from agent_framework import (
     AgentResponse,
     AgentSession,

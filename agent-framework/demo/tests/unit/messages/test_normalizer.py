@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agent.messages import MessageHistoryNormalizer
+from agent.contexts.message_converter import MessageHistoryNormalizer
 from agent_framework import Content, Message
 
 

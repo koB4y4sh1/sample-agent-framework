@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from agent.messages import CommonMessageConverter
-from agent.messages.replay_payload_sanitizer import ReplayPayloadSanitizer
+from agent.contexts.message_converter import CommonMessageConverter
+from agent.contexts.message_converter._replay_payload_sanitizer import ReplayPayloadSanitizer
 from agent_framework import Content, Message
 
 

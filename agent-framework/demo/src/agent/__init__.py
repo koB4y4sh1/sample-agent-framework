@@ -7,14 +7,18 @@ from .contexts import (
     UserProfile,
     UserProfileContextProvider,
 )
-from .history import LocalHistoryProvider
-from .messages import (
+from .contexts.message_converter import (
+    AnthropicMessageConverter,
     AnthropicReplayConverter,
+    BaseProviderMessageConverter,
     CommonMessageConverter,
+    GeminiMessageConverter,
     MessageHistoryNormalizer,
+    OpenAIMessageConverter,
     ProviderMessageConverter,
     ReasoningPolicy,
 )
+from .history import LocalHistoryProvider
 from .providers import (
     create_anthropic_chat_client,
     create_gemini_chat_client,
@@ -42,7 +46,11 @@ __all__ = [
     "LocalHistoryProvider",
     "MessageStore",
     "AnthropicReplayConverter",
+    "AnthropicMessageConverter",
+    "BaseProviderMessageConverter",
     "CommonMessageConverter",
+    "GeminiMessageConverter",
+    "OpenAIMessageConverter",
     "ProviderMessageConverter",
     "MessageHistoryNormalizer",
     "ReasoningPolicy",

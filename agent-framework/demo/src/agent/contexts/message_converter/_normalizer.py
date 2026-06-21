@@ -6,22 +6,16 @@ from agent_framework import Content, Message
 
 
 class MessageHistoryNormalizer:
-    """MAF Message 履歴を provider に再投入できる構造へ正規化する。
+    """保存済み履歴を、provider に再投入しやすい tool call/result の並びへ直す。
 
-    MAF の実行結果では、tool call と tool result が別メッセージに分かれたり、
-    MCP result が call より後の assistant メッセージに出ることがある。
-    そのまま会話履歴として provider に渡すと、Anthropic のように tool use/result
-    の対応関係を厳密に検証する API で 400 エラーになる。
+    Agent 実行時の履歴では、tool call と tool result が別 Message に分かれたり、
+    MCP result が call より後の assistant Message に入ったりする。
+    provider によっては call/result の対応や順序に厳しいため、そのまま渡すと失敗する。
 
-    この normalizer は保存時・実行前の履歴に対して、以下の provider replay 用の
-    構造へ揃える。
-
-    - hosted MCP:
-        `mcp_server_tool_call` と `mcp_server_tool_result` を同一 assistant メッセージ内に置く。
-        複数 call がある場合は call 群の後に call 順の result 群を並べる。
-    - client/local tool:
-        `function_call` などの call は assistant、対応する result は直後の toolメッセージに置く。
-    - 対応する result がない call、または対応する call がない result は replay 不能な中途半端な履歴なので除外する。
+    この normalizer がやること:
+    - hosted MCP の call/result を同じ assistant Message 内に並べ直す
+    - client/local tool の call は assistant、result は直後の tool Message に並べ直す
+    - 対応する call がない result、対応する result がない call は再投入から外す
     """
 
     _CLIENT_TOOL_CALL_TYPES = {
@@ -48,7 +42,7 @@ class MessageHistoryNormalizer:
         current_input_approval_request_ids: set[str] | None = None,
         current_input_approval_response_ids: set[str] | None = None,
     ) -> list[Message]:
-        """履歴メッセージを provider replay 用の call/result 構造へ正規化する。"""
+        """履歴 Message を provider replay 用の call/result 構造へ正規化する。"""
         return self._normalize_tool_results(
             messages,
             current_input_approval_request_ids=current_input_approval_request_ids or set(),
@@ -62,6 +56,8 @@ class MessageHistoryNormalizer:
         current_input_approval_request_ids: set[str],
         current_input_approval_response_ids: set[str],
     ) -> list[Message]:
+        # 先に result/approval response を call_id ごとに集める。
+        # あとで call を見つけたタイミングで、対応する result を差し込む。
         mcp_results_by_call_id = self._collect_mcp_results(messages)
         client_results_by_call_id = self._collect_client_results(messages)
         approval_responses_by_id = (
@@ -112,12 +108,14 @@ class MessageHistoryNormalizer:
                     pending_approval_response_contents = []
 
             for content in contents:
+                # hosted MCP は call と result を assistant Message の中で隣接させる。
                 if content.type == "mcp_server_tool_call" and isinstance(content.call_id, str):
                     if content.call_id in mcp_results_by_call_id:
                         contents_with_results.append(content)
                         pending_mcp_call_ids.append(content.call_id)
                     continue
 
+                # client/local tool は call の直後に tool role の result Message を置く。
                 if content.type in self._CLIENT_TOOL_CALL_TYPES and isinstance(content.call_id, str):
                     if content.call_id in approval_request_ids:
                         continue
@@ -128,6 +126,7 @@ class MessageHistoryNormalizer:
                         pending_client_result_contents.extend(client_results)
                     continue
 
+                # 承認要求は、承認応答または実行済み result と対応付けて再投入する。
                 if content.type == self._APPROVAL_REQUEST_TYPE:
                     flush_mcp_results()
                     request_id = self._approval_id(content)
@@ -171,6 +170,7 @@ class MessageHistoryNormalizer:
         return self._merge_adjacent_mcp_assistant_messages(normalized)
 
     def _collect_mcp_results(self, messages: Sequence[Message]) -> dict[str, list[Content]]:
+        """MCP result を call_id ごとに集める。"""
         results: dict[str, list[Content]] = {}
         for message in messages:
             for content in message.contents:
@@ -179,6 +179,7 @@ class MessageHistoryNormalizer:
         return results
 
     def _collect_client_results(self, messages: Sequence[Message]) -> dict[str, list[Content]]:
+        """client/local tool の result を call_id ごとに集める。"""
         results: dict[str, list[Content]] = {}
         for message in messages:
             for content in message.contents:
@@ -187,6 +188,7 @@ class MessageHistoryNormalizer:
         return results
 
     def _collect_approval_responses(self, messages: Sequence[Message]) -> dict[str, list[Content]]:
+        """承認応答を、対応する承認要求 ID ごとに集める。"""
         responses: dict[str, list[Content]] = {}
         request_ids = {
             request_id
@@ -204,6 +206,7 @@ class MessageHistoryNormalizer:
         return responses
 
     def _without_tool_results(self, contents: Sequence[Content]) -> list[Content]:
+        """先に回収済みの result 系 content を、元の位置から取り除く。"""
         return [
             content
             for content in contents
@@ -213,6 +216,7 @@ class MessageHistoryNormalizer:
         ]
 
     def _approval_id(self, content: Content) -> str | None:
+        """承認要求・承認応答を対応付けるための ID を取り出す。"""
         content_id = getattr(content, "id", None)
         if content_id:
             return str(content_id)
@@ -221,6 +225,7 @@ class MessageHistoryNormalizer:
         return str(call_id) if call_id else None
 
     def _is_current_input_approval_message(self, message: Message, approval_ids: set[str]) -> bool:
+        """今回の入力として処理中の承認要求なら、履歴側からは除外する。"""
         if not self._normalize_approval_exchanges or not approval_ids:
             return False
         return any(
@@ -229,6 +234,7 @@ class MessageHistoryNormalizer:
         )
 
     def _merge_adjacent_mcp_assistant_messages(self, messages: Sequence[Message]) -> list[Message]:
+        """MCP call/result で分かれた assistant Message を必要に応じて結合する。"""
         merged: list[Message] = []
         for message in messages:
             if merged and self._should_merge_assistant_messages(merged[-1], message):

@@ -15,7 +15,7 @@ from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
 from utils.print import print_gray
 
-from ..messages import MessageHistoryNormalizer, ProviderMessageConverter
+from .message_converter import BaseProviderMessageConverter, MessageHistoryNormalizer, ProviderMessageConverter
 
 
 class UserProfile(BaseModel):
@@ -42,7 +42,7 @@ class UserProfileContextProvider(ContextProvider):
         history_source_id: str,
         source_id: str | None = None,
         refresh_interval: int = 3,
-        message_converter: ProviderMessageConverter | None = None,
+        message_converter: BaseProviderMessageConverter | None = None,
         message_normalizer: MessageHistoryNormalizer | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
