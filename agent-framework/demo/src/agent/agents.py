@@ -11,6 +11,7 @@ class DemoAgentConfig:
     model_name: str
     default_options: Any
     expose_default_tools: bool = False
+    middleware: list[Any] | None = None
 
 
 class DemoAgent:
@@ -59,4 +60,5 @@ class DemoAgent:
             context_providers=context_providers,
             tools=self._tool.build_tools() if self._config.expose_default_tools else [],
             default_options=self._config.default_options,
+            middleware=self._config.middleware,
         )

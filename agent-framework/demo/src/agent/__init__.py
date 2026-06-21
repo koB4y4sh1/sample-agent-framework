@@ -32,6 +32,19 @@ from .providers import (
 from .skills import DemoSkills
 from .store import CosmosStore, LocalStore, MessageStore
 from .tools import ToolRegistry
+from .middleware import (
+    ALLOW_TOOLS_FILE_NAME,
+    DEFAULT_MEMORY_ROOT_DIR,
+    AgentMiddlewareConfig,
+    AllowToolsStore,
+    ApprovalScope,
+    AutoToolApprovalConfig,
+    TaskCompletionLoopConfig,
+    allow_tool_request,
+    build_auto_tool_approval_rule,
+    build_middleware,
+    build_task_completion_loop,
+)
 
 __all__ = [
     "UserProfile",
@@ -46,6 +59,13 @@ __all__ = [
     "DemoAgentConfig",
     "DemoAgent",
     "ToolRegistry",
+    "ALLOW_TOOLS_FILE_NAME",
+    "DEFAULT_MEMORY_ROOT_DIR",
+    "AgentMiddlewareConfig",
+    "AllowToolsStore",
+    "ApprovalScope",
+    "AutoToolApprovalConfig",
+    "TaskCompletionLoopConfig",
     "DemoSkills",
     "LocalStore",
     "CosmosStore",
@@ -66,4 +86,8 @@ __all__ = [
     "create_gemini_chat_client",
     "create_content_understanding_context_provider_from_env",
     "create_cu_attachment_content",
+    "allow_tool_request",
+    "build_auto_tool_approval_rule",
+    "build_middleware",
+    "build_task_completion_loop",
 ]

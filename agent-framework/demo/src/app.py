@@ -17,8 +17,10 @@ from agent import (
     PreferencePolicyProvider,
     ProviderMessageConverter,
     ReasoningPolicy,
+    AgentMiddlewareConfig,
     ToolRegistry,
     UserProfileContextProvider,
+    build_middleware,
     create_anthropic_chat_client,
     create_gemini_chat_client,
     create_openai_chat_client,
@@ -43,6 +45,7 @@ class DemoConfig:
     compaction_keep_last_groups: int = 20
     reasoning_policy: ReasoningPolicy = "as_text"
     progressive_tool_exposure: bool = True
+    middleware: AgentMiddlewareConfig = AgentMiddlewareConfig()
 
 
 class DemoApplication:
@@ -114,6 +117,10 @@ class DemoApplication:
                 model_name=self.config.model,
                 default_options=self.model_settings.default_options,
                 expose_default_tools=not self.config.progressive_tool_exposure,
+                middleware=build_middleware(
+                    judge_client=self.haiku_client,
+                    config=self.config.middleware,
+                ),
             ),
             client=self.chat_client,
             history_provider=self.history_provider,
