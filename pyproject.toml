@@ -17,6 +17,7 @@ dependencies = [
     "azure-storage-blob>=12.27.1",
     "debugpy>=1.8.19",
     "fastmcp>=2.14.2",
+    "httpx>=0.28.1",
     "nicegui>=3.13.0",
     "openai>=2.38.0",
     "opentelemetry-instrumentation-aiohttp-client>=0.61b0",
@@ -24,9 +25,19 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.61b0",
     "opentelemetry-instrumentation-httpx>=0.61b0",
     "opentelemetry-instrumentation-mcp>=0.60.0",
+    "playwright>=1.60.0",
+    "pydantic-settings>=2.14.1",
     "python-dotenv>=1.2.2",
     "ruff>=0.14.7",
 ]
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "agent-framework"}
+packages = ["harness"]
 
 [dependency-groups]
 dev = [

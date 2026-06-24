@@ -1,0 +1,41 @@
+# Goal
+
+## User
+
+- Name:
+
+## Target
+
+- Allowed domain:
+- Target URL:
+
+## Objective
+
+Describe what the agent should accomplish.
+
+```text
+
+```
+
+## Login
+
+Use this section only for sites you are authorized to access.
+
+- Username:
+- Password:
+- MFA / manual login notes:
+
+## Constraints
+
+- Do not submit, delete, purchase, publish, share externally, or change permissions without explicit approval.
+- Stop and report `NEEDS_USER` when login, MFA, CAPTCHA, or human approval is required.
+
+## Completion Criteria
+
+- The task is complete when:
+
+## Notes
+
+```text
+
+```

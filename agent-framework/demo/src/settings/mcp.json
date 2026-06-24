@@ -1,6 +1,6 @@
 [
     {
-        "enabled": true,
+        "enabled": false,
         "name": "Microsoft_Learn_MCP",
         "mode": "hosted",
         "url": "https://learn.microsoft.com/api/mcp",
@@ -27,7 +27,7 @@
         "url": "http://localhost:8000/mcp"
     },
     {
-        "enabled": true,
+        "enabled": false,
         "name": "Demo_MCP",
         "mode": "local",
         "transport": "streamable_http",
