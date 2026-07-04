@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>5. 長時間ループ ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">⑤ 長時間ループ</p>
+      <h1>一回で全部やらせず、短い作業を何度も回します</h1>
+      <p class="lead">
+        長時間稼働のコツは、巨大な 1 回の実行にしないことです。この Harness は
+        <strong>「1 サイクルで少し進む」</strong>を繰り返します。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="04-browser.html">④ ブラウザ操作</a>
+        <a href="06-config-run.html">⑥ 設定と実行 →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>1 サイクルの動き</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 4-1 ｜ 5 ステップを繰り返すループ</p>
+        <div class="pipe wrap">
+          <div class="node b"><strong>プロンプト作成</strong><small>runtime.py の LOOP_PROMPT</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>Agent 実行</strong><small>次の小さい作業</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>結果パース</strong><small>LOOP_STATUS を読む</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>ログ保存</strong><small>jsonl / checkpoint</small></div>
+          <div class="to">→</div>
+          <div class="node v"><strong>次を判断</strong><small>継続 / 停止 / 再試行</small></div>
+        </div>
+        <p class="muted" style="margin:14px 0 0;text-align:center">
+          ↻ <strong>CONTINUE</strong> なら「プロンプト作成」に戻り、次のサイクルを回す
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>ステータスの意味</h2>
+      <table class="simple-table">
+        <thead>
+          <tr><th>ステータス</th><th>意味</th><th>次の動き</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge g">CONTINUE</span></td><td>まだ続けられる。</td><td>次サイクルへ進む。</td></tr>
+          <tr><td><span class="badge b">COMPLETE</span></td><td>依頼が完了した。</td><td>終了コード 0 で止まる。</td></tr>
+          <tr><td><span class="badge a">NEEDS_USER</span></td><td>ログイン・MFA・承認・追加入力が必要。</td><td>人間待ちで止まる。</td></tr>
+          <tr><td><span class="badge r">BLOCKED</span></td><td>ツール・環境・対象サイトで詰まった。</td><td>再試行または停止。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>どこで止まるか</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 4-2 ｜ 5 つの停止トリガー</p>
+        <div class="kpis">
+          <div class="kpi"><div class="big" style="font-size:18px">COMPLETE</div><div class="lbl">成功して完了</div></div>
+          <div class="kpi"><div class="big" style="font-size:18px">NEEDS_USER</div><div class="lbl">人間の操作が必要</div></div>
+          <div class="kpi"><div class="big" style="font-size:18px">連続失敗</div><div class="lbl">consecutive-error-limit</div></div>
+          <div class="kpi"><div class="big" style="font-size:18px">最大回数</div><div class="lbl">max-cycles</div></div>
+          <div class="kpi"><div class="big" style="font-size:18px">最大時間</div><div class="lbl">max-runtime-hours</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>BLOCKED のときの分岐</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 4-3 ｜ <code>--unattended</code> の有無で挙動が変わる</p>
+        <div class="tree">
+          <div class="branch">
+            <div class="q">BLOCKED や停滞が起きた</div>
+            <div class="arm">→</div>
+            <div class="a"><span class="badge g">--unattended あり</span> 上限に達するまで回復を試し続ける（夜間稼働向き）</div>
+          </div>
+          <div class="branch">
+            <div class="q">BLOCKED や停滞が起きた</div>
+            <div class="arm">→</div>
+            <div class="a"><span class="badge a">--unattended なし</span> 早めに止まる。検証時は原因を追いやすい</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>再開（resume）の仕組み</h2>
+      <p>
+        <code>checkpoint.json</code> に最後のサイクル結果が保存されます。
+        次回 <code>--resume</code> を付けると、その情報を <code>LOOP_PROMPT</code> に入れて再開します。
+      </p>
+      <div class="diagram">
+        <p class="diagram-title">図 4-4 ｜ 中断 → 再開の橋渡し</p>
+        <div class="pipe">
+          <div class="node g"><strong>前回の最終サイクル</strong><small>状態を書き出す</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>checkpoint.json</strong><small>last_cycle / status…</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>--resume 起動</strong><small>状態を読み込む</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>続きから再開</strong><small>LOOP_PROMPT に注入</small></div>
+        </div>
+      </div>
+      <pre><code>Previous checkpoint:
+{
+  "last_cycle": 3,
+  "last_status": "CONTINUE",
+  "last_summary": "...",
+  "last_next": "..."
+}</code></pre>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="04-browser.html">← ④ ブラウザ操作へ</a>
+      <a href="06-config-run.html">⑥ 設定と実行へ →</a>
+    </nav>
+  </main>
+</body>
+</html>

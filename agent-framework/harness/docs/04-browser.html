@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>4. ブラウザ操作の仕組み ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">④ ブラウザ操作の仕組み</p>
+      <h1>Toolbox でブラウザを作り、Playwright で操作します</h1>
+      <p class="lead">
+        ここが一番つまずきやすい部分です。<strong>Toolbox はクリックしません</strong>。Toolbox は CDP URL を返します。
+        その URL に Python Playwright が接続して、クリックや入力をします。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="03-files.html">③ ファイルの役割</a>
+        <a href="05-loop.html">⑤ 長時間ループ →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>実際の流れ</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 3-1 ｜ セッション作成から操作まで</p>
+        <div class="pipe wrap">
+          <div class="node"><strong>browser_start</strong><small>Agent が呼ぶ</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>tool_search</strong><small>query="browser"</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>call_tool</strong><small>create_session を実行</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>CDP URL</strong><small>wss://… を取得</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>connect_over_cdp</strong><small>Playwright で接続</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>browser_goto 等</strong><small>操作開始</small></div>
+        </div>
+        <div class="legend">
+          <span><i class="dot"></i>Agent から見える道具</span>
+          <span><i class="dot b"></i>Toolbox（裏方）</span>
+          <span><i class="dot a"></i>Azure が返す接続先</span>
+          <span><i class="dot g"></i>Python Playwright</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>境界線：どこまでが Toolbox で、どこからが Playwright か</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 3-2 ｜ CDP URL が「受け渡しポイント」</p>
+        <div class="seq">
+          <div class="seq-row"><div class="num">1</div><div class="body"><strong>Agent → browser_start</strong><small>「ブラウザを用意して」と 1 つの道具を呼ぶだけ。</small></div></div>
+          <div class="seq-row"><div class="num">2</div><div class="body"><strong>Toolbox → Azure</strong><small><code>create_session</code> がリモートブラウザを起動する。</small></div></div>
+          <div class="seq-row"><div class="num">3</div><div class="body"><strong>Azure → CDP URL</strong><small><code>wss://…</code> の接続先が返ってくる。<span class="badge a">ここが境界</span></small></div></div>
+          <div class="seq-row"><div class="num">4</div><div class="body"><strong>Playwright → connect</strong><small><code>connect_over_cdp(url)</code> でその URL に接続する。</small></div></div>
+          <div class="seq-row"><div class="num">5</div><div class="body"><strong>Playwright → 操作</strong><small><code>page.goto</code> / <code>click</code> / <code>fill</code> で実際にページを動かす。</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2 つの役目を分けて見る</h2>
+      <div class="cols-2">
+        <div class="card">
+          <h3><span class="badge b">Toolbox</span> の役目</h3>
+          <p><code>playwright-browser</code> Toolbox は Azure Playwright Workspace 上にリモートブラウザを作ります。</p>
+          <pre><code>tool_search("browser")
+call_tool(
+  "browser_automation___create_session"
+)
+# → CDP URL (wss://...) を返す</code></pre>
+        </div>
+        <div class="card">
+          <h3><span class="badge g">Python Playwright</span> の役目</h3>
+          <p>Toolbox から返った CDP URL に接続して、ページを操作します。</p>
+          <pre><code>chromium.connect_over_cdp(cdp_url)
+page.goto(url)
+page.locator(selector).click()</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Agent に見せるツール</h2>
+      <p>Agent には <code>tool_search</code> や <code>call_tool</code> を直接使わせません。代わりに次の分かりやすい道具だけを見せます。</p>
+      <table class="simple-table">
+        <thead>
+          <tr><th>ツール</th><th>意味</th><th>種別</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>browser_start</code></td><td>ブラウザセッションを開始する。</td><td><span class="badge a">準備</span></td></tr>
+          <tr><td><code>browser_goto</code></td><td>許可ドメイン内の URL へ移動する。</td><td><span class="badge b">移動</span></td></tr>
+          <tr><td><code>browser_snapshot</code></td><td>ページのテキスト・リンク・ボタン・入力欄を読む。</td><td><span class="badge g">読取</span></td></tr>
+          <tr><td><code>browser_click</code></td><td>指定した selector をクリックする。</td><td><span class="badge v">操作</span></td></tr>
+          <tr><td><code>browser_fill</code></td><td>入力欄に文字を入れる。</td><td><span class="badge v">操作</span></td></tr>
+          <tr><td><code>browser_press</code></td><td>Enter や Tab などのキーを押す。</td><td><span class="badge v">操作</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="note">
+      <h2>なぜ <code>playwright-cli</code> ではなく Python Playwright か</h2>
+      <p>
+        <code>playwright-cli</code> は手元で試すには便利です。ただし Harness に組み込む場合は、外部 CLI プロセスの状態管理が必要になります。
+        今回は Python の中で接続・操作・close・エラー処理をまとめるため、<code>playwright</code> ライブラリを直接使っています。
+      </p>
+    </section>
+
+    <section class="danger">
+      <h2>HTTP 403 が出る場合</h2>
+      <p>
+        <code>browser_automation___create_session</code> で HTTP 403 が出る場合、コードより先に
+        <strong>Azure Playwright Workspace 側の権限</strong>を疑います。CDP URL が作れないので、Playwright 接続まで進めません。
+        詳しい復旧手順は <a href="07-troubleshooting.html">⑦ エラーの読み方</a> を参照してください。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="03-files.html">← ③ ファイルの役割へ</a>
+      <a href="05-loop.html">⑤ 長時間ループへ →</a>
+    </nav>
+  </main>
+</body>
+</html>

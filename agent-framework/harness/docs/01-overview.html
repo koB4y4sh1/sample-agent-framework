@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1. 全体像 ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">① 全体像</p>
+      <h1>これは「長時間ブラウザ作業を回すための箱」です</h1>
+      <p class="lead">
+        Harness はブラウザそのものではありません。Agent を何度も起動し、失敗したら再試行し、ログを残し、
+        止めるべき時に止める——その<strong>外側の仕組み</strong>です。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="02-agent-framework.html">② Agent Framework と HarnessAgent →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>一番大きな図</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 1-1 ｜ 起動から操作までの最短経路</p>
+        <div class="pipe">
+          <div class="node b"><strong>main.py</strong><small>CLI 引数を読む</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>run.py</strong><small>サイクルを回す</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>agent.py</strong><small>Agent とツールを作る</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>browser_tools.py</strong><small>ブラウザを操作する</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>Azure Browser</strong><small>実際の画面</small></div>
+        </div>
+      </div>
+      <p>
+        かなり単純化すると、上の順番で動きます。ユーザーがコマンドを打つと <code>main.py</code> が受け取り、
+        <code>run.py</code> がループを開始します。その中で <code>agent.py</code> が Agent を作り、Agent が必要に応じて
+        <code>browser_tools.py</code> の <code>browser_goto</code> や <code>browser_click</code> を呼びます。
+      </p>
+    </section>
+
+    <section>
+      <h2>Harness の責務範囲</h2>
+      <div class="cols-2">
+        <div class="ok">
+          <h2>Harness が「やる」こと</h2>
+          <p>✅ 作業を短い単位（1 サイクル）に区切る</p>
+          <p>✅ 失敗したら再試行する</p>
+          <p>✅ 進捗をログ（JSONL）に残す</p>
+          <p>✅ 止めるべき状態を判定して停止する</p>
+        </div>
+        <div class="warn">
+          <h2>Harness が「やらない」こと</h2>
+          <p>🚫 自分でブラウザをクリックしない</p>
+          <p>🚫 自分でページを読まない</p>
+          <p>🚫 権限の無い Azure Workspace を突破しない</p>
+          <p>🚫 CAPTCHA や MFA を突破しない</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>人間の作業に例えると</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 1-2 ｜ 役割を現場の仕事に置き換える</p>
+        <div class="pipe wrap">
+          <div class="node v"><strong>あなた</strong><small>仕事を頼む人</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>Harness</strong><small>現場監督。作業を区切る</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>Agent</strong><small>作業者。次の一手を考える</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>browser_* ツール</strong><small>手。クリックや入力をする</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>ログ</strong><small>作業日報</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>1 サイクルの中で何が起きているか</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 1-3 ｜ 「考える人」と「動かす手」は分かれている</p>
+        <div class="seq">
+          <div class="seq-row">
+            <div class="num">1</div>
+            <div class="body"><strong>Harness が指示を渡す</strong><small>「今のページから 1 手だけ進めて」とプロンプトを作る。</small></div>
+          </div>
+          <div class="seq-row">
+            <div class="num">2</div>
+            <div class="body"><strong>Agent が考える</strong><small>LLM が状況を読み、<code>browser_click</code> など呼ぶツールを 1 つ決める。</small></div>
+          </div>
+          <div class="seq-row">
+            <div class="num">3</div>
+            <div class="body"><strong>ツールが動かす</strong><small>Python Playwright が Azure 上のブラウザを実際に操作する。</small></div>
+          </div>
+          <div class="seq-row">
+            <div class="num">4</div>
+            <div class="body"><strong>結果を記録して次へ</strong><small>状態を JSONL / checkpoint に保存し、続行か停止かを判定する。</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="note">
+      <h2>重要な前提</h2>
+      <p>
+        <code>playwright-browser</code> Toolbox は、今の構成では主に「リモートブラウザセッションを作る」役目です。
+        実際のクリックや入力は、今回追加した Python Playwright の <code>browser_*</code> ツールが担当します。
+        この分担は <a href="04-browser.html">④ ブラウザ操作の仕組み</a> で詳しく扱います。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="index.html">← 目次へ戻る</a>
+      <a href="02-agent-framework.html">② Agent Framework と HarnessAgent へ →</a>
+    </nav>
+  </main>
+</body>
+</html>

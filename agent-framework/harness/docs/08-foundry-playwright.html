@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>8. Foundry Toolbox と Playwright Workspaces ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">⑧ 付録：Foundry Toolbox と Playwright Workspaces</p>
+      <h1>ブラウザを動かす「外部サービス」と料金の仕組み</h1>
+      <p class="lead">
+        この Harness のブラウザは、Foundry の <strong>Browser Automation Tool（Toolbox）</strong> と
+        <strong>Azure Playwright Workspaces</strong> の 2 つで動いています。
+        それぞれの役割・セットアップ・<strong>料金形態</strong>をまとめます。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="07-troubleshooting.html">⑦ エラーの読み方</a>
+        <a href="04-browser.html">④ ブラウザ操作</a>
+      </nav>
+    </section>
+
+    <section class="note">
+      <h2>先に全体像</h2>
+      <p>
+        課金は <strong>3 階建て</strong>です。Foundry Agent Service とツール自体は基本無料で、
+        実費は <strong>モデルのトークン</strong>と <strong>Playwright Workspaces のテスト分（test minutes）</strong>に乗ります。
+      </p>
+      <div class="diagram">
+        <p class="diagram-title">図 8-1 ｜ コスト構造（3 階建て）</p>
+        <div class="layers">
+          <div class="layer b">
+            <div class="lname">① Foundry Agent Service<small>サービス基盤</small></div>
+            <div class="ldesc">サービス自体は<strong>追加料金なし</strong>。ただし <span class="badge a">モデルトークン</span> は課金される。</div>
+          </div>
+          <div class="layer-gap">＋</div>
+          <div class="layer v">
+            <div class="lname">② Browser Automation Tool<small>Toolbox / preview</small></div>
+            <div class="ldesc">ツール利用自体は<strong>追加料金なし</strong>。下層の Playwright Workspaces を呼び出す。</div>
+          </div>
+          <div class="layer-gap">＋</div>
+          <div class="layer g">
+            <div class="lname">③ Playwright Workspaces<small>ブラウザ基盤 / GA</small></div>
+            <div class="ldesc"><span class="badge g">test minutes</span> で従量課金。30 日・100 分の無料枠あり。</div>
+          </div>
+        </div>
+        <p class="muted" style="margin:14px 0 0">
+          ※ 実運用では<strong>モデルのトークン課金</strong>が支配的になりがち。長時間ループ（<a href="05-loop.html">⑤</a>）は
+          トークンと test minutes の両方を消費します。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ Foundry Toolbox / BAT ============ -->
+    <section>
+      <h2>A. Foundry の Toolbox（Browser Automation Tool）<span class="badge a" style="margin-left:8px">public preview</span></h2>
+      <p>
+        Foundry Agent Service が提供するツールの 1 つで、エージェントが<strong>自然言語でブラウザを操作</strong>するための
+        <strong>MCP ツール</strong>です。ヘッドレスブラウザ基盤として Playwright Workspaces を使います。
+      </p>
+
+      <div class="diagram">
+        <p class="diagram-title">図 8-2 ｜ このリポジトリのコードとの対応（agent.py）</p>
+        <div class="pipe wrap">
+          <div class="node v"><strong>playwright-browser Toolbox</strong><small>MCPStreamableHTTPTool</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>create_session</strong><small>セッション生成</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>Browser endpoint</strong><small>wss://… (CDP)</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>Python Playwright</strong><small>connect_over_cdp</small></div>
+        </div>
+        <div class="legend">
+          <span>Toolbox は「隔離ブラウザを作って CDP URL を返す」係</span>
+          <span>実操作は <a href="04-browser.html">④ ブラウザ操作</a> を参照</span>
+        </div>
+      </div>
+
+      <h3>仕組み</h3>
+      <p>
+        リクエストごとに<strong>隔離・サンドボックス化されたブラウザセッション</strong>を生成し、
+        「スクリーンショットで状態観測 → アクション（クリック / 入力 / 座標）」のループを、モデルが止めるまで繰り返します。
+        マルチターン対話・Live View デバッグ・human-in-the-loop（Take control）に対応します。
+      </p>
+
+      <h3>セットアップの流れ</h3>
+      <div class="diagram">
+        <p class="diagram-title">図 8-3 ｜ Workspace 作成 → Foundry 連携</p>
+        <div class="seq">
+          <div class="seq-row"><div class="num">1</div><div class="body"><strong>Playwright Workspace を作成</strong><small>Azure portal でリソース作成。</small></div></div>
+          <div class="seq-row"><div class="num">2</div><div class="body"><strong>アクセストークンを発行</strong><small>Settings &gt; Access Management でトークン生成（一度しか表示されない）。</small></div></div>
+          <div class="seq-row"><div class="num">3</div><div class="body"><strong>Browser endpoint を控える</strong><small>Overview の <code>wss://…</code> をコピー。</small></div></div>
+          <div class="seq-row"><div class="num">4</div><div class="body"><strong>権限付与</strong><small>project identity に Playwright workspace への <strong>Contributor</strong> を付与。<span class="badge r">403 の主因</span></small></div></div>
+          <div class="seq-row"><div class="num">5</div><div class="body"><strong>Foundry で Toolbox 作成</strong><small>Build &gt; Tools で Browser Automation を Add → Connect → Publish。</small></div></div>
+          <div class="seq-row"><div class="num">6</div><div class="body"><strong>Project connection ID を取得</strong><small>コードからこの接続を参照する。</small></div></div>
+        </div>
+      </div>
+
+      <div class="cols-2">
+        <div class="danger">
+          <h3>⚠ セキュリティ警告（公式が強調）</h3>
+          <p>AI が認証情報を使って実ブラウザを操作するため<strong>重大なリスク</strong>があります。信頼できるサイトのみで使い、付与する資格情報は最小限に。判断・テスト・責任は利用者側です。</p>
+        </div>
+        <div class="warn">
+          <h3>制限</h3>
+          <p>信頼サイト限定／ページ変動で壊れやすい／JS 重い SPA は描画できないことがある／処理が長く<strong>タイムアウトは 5 分以上</strong>推奨。</p>
+        </div>
+      </div>
+
+      <div class="ok">
+        <h3>料金（Toolbox 部分）</h3>
+        <p>
+          <strong>Browser Automation Tool 自体・Foundry Agent Service 自体に追加料金はありません。</strong>
+          実費は <span class="badge a">モデルトークン</span> ＋ 下層の <span class="badge g">Playwright Workspaces（test minutes）</span> に発生します。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ Playwright Workspaces ============ -->
+    <section>
+      <h2>B. Azure Playwright Workspaces<span class="badge g" style="margin-left:8px">GA（一般提供）</span></h2>
+      <p>
+        Playwright ベースの<strong>フルマネージド E2E テスト基盤</strong>。クラウド上の本物のブラウザを大規模並列で動かします。
+        Browser Automation Tool のブラウザ実行は、この Workspace 上で走ります。
+      </p>
+
+      <div class="note">
+        <h3>名称の経緯（重要）</h3>
+        <p>
+          旧称 <strong>「Microsoft Playwright Testing」（preview）</strong> は <strong>2026 年に retire</strong> され、
+          Azure App Testing 配下の <strong>「Playwright Workspaces」に統合・GA 化</strong>されました。
+          古い名前のドキュメントや URL を見たら、これと同一のサービスです。
+        </p>
+      </div>
+
+      <h3>課金単位 ＝ test minute（テスト分）</h3>
+      <div class="diagram">
+        <p class="diagram-title">図 8-4 ｜ test minute の数え方（秒単位で合計）</p>
+        <div class="pipe">
+          <div class="node b"><strong>12 秒のテスト</strong><small>× 50 件</small></div>
+          <div class="to">＝</div>
+          <div class="node g"><strong>600 秒</strong><small>実行時間の合計</small></div>
+          <div class="to">＝</div>
+          <div class="node a"><strong>10 test minutes</strong><small>これが課金対象</small></div>
+        </div>
+        <p class="muted" style="margin:14px 0 0">
+          ブラウザ実行時間の合計を秒単位で集計したもの。BAT 経由のブラウザセッション時間もここに乗ります。
+        </p>
+      </div>
+
+      <h3>従量課金（pay-as-you-go）</h3>
+      <table class="simple-table">
+        <thead>
+          <tr><th>OS</th><th>単価（目安）</th><th>備考</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Linux ブラウザ</td><td><strong>約 $0.01 / test minute</strong></td><td rowspan="2">最新の正確な単価は公式 <a href="https://azure.microsoft.com/en-us/pricing/details/app-testing/" target="_blank" rel="noopener">料金ページ</a>で要確認</td></tr>
+          <tr><td>Windows ブラウザ</td><td><strong>約 $0.02 / test minute</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h3>無料トライアル（公式確認済み）</h3>
+      <div class="kpis">
+        <div class="kpi"><div class="big">30日</div><div class="lbl">トライアル期間</div></div>
+        <div class="kpi"><div class="big">100分</div><div class="lbl">無料の test minutes</div></div>
+        <div class="kpi"><div class="big">1個</div><div class="lbl">無料枠の workspace（最初の1個のみ）</div></div>
+      </div>
+      <div class="warn" style="margin-top:14px">
+        <h3>超過時の挙動</h3>
+        <p>いずれかの上限を超えると、workspace は<strong>自動的に従量課金へ移行</strong>します（超過分のみ課金）。2 個目以降の workspace は最初から従量課金です。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>2 つの関係を一枚で</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 8-5 ｜ 誰が何を呼び、どこで課金されるか</p>
+        <div class="pipe wrap">
+          <div class="node"><strong>HarnessAgent</strong><small>判断（トークン課金）</small></div>
+          <div class="to">→</div>
+          <div class="node v"><strong>Browser Automation Tool</strong><small>Toolbox / 追加料金なし</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>Playwright Workspaces</strong><small>実ブラウザ / test minutes 課金</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>対象サイト</strong><small>許可ドメイン</small></div>
+        </div>
+        <div class="legend">
+          <span><i class="dot a"></i>課金が発生する箇所：モデルトークン と test minutes</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="note">
+      <h2>出典</h2>
+      <p>本章は以下の公式情報に基づきます（単価は変動するため、最新値は料金ページでご確認ください）。</p>
+      <ul>
+        <li><a href="https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/browser-automation" target="_blank" rel="noopener">Browser Automation tool（Microsoft Learn）</a></li>
+        <li><a href="https://learn.microsoft.com/en-us/azure/app-testing/playwright-workspaces/how-to-try-playwright-workspaces-free" target="_blank" rel="noopener">Playwright Workspaces 無料トライアル（Microsoft Learn）</a></li>
+        <li><a href="https://azure.microsoft.com/en-us/pricing/details/app-testing/" target="_blank" rel="noopener">Azure App Testing / Playwright Workspaces 料金</a></li>
+        <li><a href="https://azure.microsoft.com/en-us/pricing/details/foundry-agent-service/" target="_blank" rel="noopener">Foundry Agent Service 料金</a></li>
+      </ul>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="07-troubleshooting.html">← ⑦ エラーの読み方へ</a>
+      <a href="index.html">目次へ戻る →</a>
+    </nav>
+  </main>
+</body>
+</html>

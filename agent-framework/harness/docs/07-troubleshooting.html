@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>7. エラーの読み方 ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">⑦ エラーの読み方</p>
+      <h1>止まったら、まず原因を 3 種類に分けます</h1>
+      <p class="lead">
+        エラーは <strong>「設定ミス」「Azure / Toolbox 権限」「ページ操作失敗」</strong> のどれかに分けると追いやすくなります。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="06-config-run.html">⑥ 設定と実行</a>
+        <a href="08-foundry-playwright.html">⑧ 付録 →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>原因の分け方</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 6-1 ｜ 「いつ落ちたか」で原因が分かれる</p>
+        <div class="pipe wrap">
+          <div class="node b"><strong>起動前に落ちる</strong><small>環境変数や CLI 引数</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>browser_start で落ちる</strong><small>Toolbox / Azure 権限</small></div>
+          <div class="to">→</div>
+          <div class="node v"><strong>操作中に落ちる</strong><small>selector・ページ状態・ログイン</small></div>
+          <div class="to">→</div>
+          <div class="node r"><strong>BLOCKED</strong><small>Agent が続行不能と判断</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>どこを見ればいい？（逆引き）</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 6-2 ｜ 症状から確認先へ</p>
+        <div class="tree">
+          <div class="branch">
+            <div class="q">起動してすぐ落ちる</div>
+            <div class="arm">→</div>
+            <div class="a"><code>settings.py</code> と <code>.env</code>（<code>HA_</code> 変数の不足）</div>
+          </div>
+          <div class="branch">
+            <div class="q">browser_start で 403</div>
+            <div class="arm">→</div>
+            <div class="a">Azure Playwright Workspace の <strong>IAM 権限</strong></div>
+          </div>
+          <div class="branch">
+            <div class="q">ページ操作で失敗</div>
+            <div class="arm">→</div>
+            <div class="a"><code>runs/&lt;id&gt;.jsonl</code> の selector・URL・タイムアウト</div>
+          </div>
+          <div class="branch">
+            <div class="q">runs が二重パス</div>
+            <div class="arm">→</div>
+            <div class="a">実行した<strong>作業ディレクトリ</strong>（リポジトリ直下で実行）</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>よくあるエラー</h2>
+      <table class="simple-table">
+        <thead>
+          <tr><th>表示</th><th>原因</th><th>見る場所</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>HA_FOUNDRY_PROJECT_ENDPOINT is required</code></td>
+            <td><code>.env</code> か環境変数が不足。</td>
+            <td><code>settings.py</code> / <code>.env</code></td>
+          </tr>
+          <tr>
+            <td><code>No tools matched query</code></td>
+            <td>Toolbox 検索クエリが悪い。今回の実装では Agent に直接使わせない。</td>
+            <td><code>browser_tools.py</code> の <code>query="browser"</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge r">HTTP 403</span></td>
+            <td>Azure Playwright Workspace の権限不足。特に Foundry Project identity に Contributor が無いケース。</td>
+            <td>Azure Playwright Workspace の IAM</td>
+          </tr>
+          <tr>
+            <td><code>Domain is not allowed</code></td>
+            <td><code>--allowed-domain</code> にない URL へ移動しようとした。</td>
+            <td>CLI 引数 / <code>browser_goto</code> の URL</td>
+          </tr>
+          <tr>
+            <td><code>Timeout</code></td>
+            <td>ページ読み込み・selector 待ち・Agent 応答のどれかが遅い。</td>
+            <td><code>runs/*.jsonl</code> / <code>cycle-timeout-seconds</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2><code>runs/</code> の見方</h2>
+      <div class="step-list">
+        <div class="step"><div><strong>まず <code>runs/&lt;session-id&gt;.jsonl</code></strong><br>start → retry → cycle の順に、何が起きたかを見る。</div></div>
+        <div class="step"><div><strong>次に <code>checkpoint.json</code></strong><br>最後の状態だけを見る。短くて読みやすい。</div></div>
+        <div class="step"><div><strong>詳細は <code>history/*.jsonl</code></strong><br>Agent がどのツールを呼んだかまで見る。</div></div>
+      </div>
+    </section>
+
+    <section class="danger">
+      <h2>HTTP 403 の復旧</h2>
+      <p>
+        <code>browser_automation___create_session</code> で HTTP 403 が出る場合は、Azure Playwright Workspace の権限または接続設定が不足しています。
+        典型例は、<strong>Foundry Project の Managed Identity に Contributor 権限が付いていない</strong>状態です。
+        Azure Playwright Workspace の IAM で Foundry Project の Managed Identity に Contributor を付与してください。
+        Foundry Account や Foundry リソース本体ではなく、<strong>Foundry Project identity</strong> が対象です。
+      </p>
+    </section>
+
+    <section class="warn">
+      <h2>復旧の基本</h2>
+      <p>
+        まず <code>--session-id</code> を新しくして、<code>--resume</code> なしで再実行してください。
+        古い履歴が残っていると、Agent が昔の失敗を引きずることがあります。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="06-config-run.html">← ⑥ 設定と実行へ</a>
+      <a href="08-foundry-playwright.html">⑧ 付録：Toolbox と料金へ →</a>
+    </nav>
+  </main>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>6. 設定と実行 ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">⑥ 設定と実行</p>
+      <h1>設定は <code>HA_</code>、実行は <code>uv run python -m harness.main</code></h1>
+      <p class="lead">
+        このページでは、どこに何を書いて、どう起動し、どのファイルを見ればよいかをまとめます。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="05-loop.html">⑤ 長時間ループ</a>
+        <a href="07-troubleshooting.html">⑦ エラーの読み方 →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>設定が読み込まれる流れ</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 5-1 ｜ .env から Agent へ</p>
+        <div class="pipe wrap">
+          <div class="node a"><strong>.env</strong><small>HA_ 変数を書く</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>settings.py</strong><small>HA_ を読み取る</small></div>
+          <div class="to">→</div>
+          <div class="node b"><strong>main.py</strong><small>CLI 引数と合成</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>agent.py</strong><small>Agent に反映</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>環境変数</h2>
+      <pre><code>HA_FOUNDRY_PROJECT_ENDPOINT=https://...
+HA_FOUNDRY_MODEL=gpt-5.4-nano
+HA_TOOLBOX_NAME=playwright-browser
+HA_TOOLBOX_VERSION=2
+HA_TOOLBOX_API_VERSION=v1
+HA_GOAL_FILE=agent-framework/harness/goal.md</code></pre>
+      <p>
+        <code>settings.py</code> が <code>HA_</code> で始まる環境変数を読みます。
+        <code>.env</code> に書いておけば、コード側で <code>load_dotenv()</code> しなくても読み込まれます。
+      </p>
+    </section>
+
+    <section>
+      <h2><code>goal.md</code> の役目</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 5-2 ｜ goal.md は CLI 引数ではなく instructions に入る</p>
+        <div class="pipe">
+          <div class="node a"><strong>goal.md</strong><small>目的・ログイン情報</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>agent.py</strong><small>instructions に追加</small></div>
+          <div class="to">→</div>
+          <div class="node v"><strong>Agent</strong><small>作業文脈として読む</small></div>
+        </div>
+      </div>
+      <p>
+        <code>goal.md</code> は CLI 引数には変換しません。Agent の instructions に追加されます。
+        資格情報をログや最終回答に出さない指示も一緒に入れています。
+      </p>
+    </section>
+
+    <section>
+      <h2>基本実行</h2>
+      <pre><code>uv run python -m harness.main `
+  --allowed-domain app.levela.co.jp `
+  --session-id example-run-001 `
+  --max-cycles 30 `
+  --cycle-timeout-seconds 900 `
+  --retry-attempts 3 `
+  --consecutive-error-limit 3 `
+  "app.levela.co.jp を対象に、許可された範囲で作業してください"</code></pre>
+    </section>
+
+    <section>
+      <h2>長時間実行</h2>
+      <pre><code>uv run python -m harness.main `
+  --allowed-domain app.levela.co.jp `
+  --session-id overnight-001 `
+  --unattended `
+  --max-runtime-hours 8 `
+  --max-cycles 300 `
+  --cycle-timeout-seconds 1200 `
+  --retry-attempts 5 `
+  --consecutive-error-limit 10 `
+  --stall-limit 10 `
+  "app.levela.co.jp を対象に、許可された範囲で作業を継続してください"</code></pre>
+    </section>
+
+    <section>
+      <h2>生成されるファイル</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 5-3 ｜ runs/ 配下に書き出される</p>
+        <pre><code>runs/
+├─ &lt;session-id&gt;.jsonl            ← まずここを見る（実行ログ）
+├─ &lt;session-id&gt;.checkpoint.json  ← 再開用の最新状態
+├─ &lt;session-id&gt;.heartbeat.json   ← 外部監視用の現在状態
+└─ history/
+   └─ &lt;session-id&gt;.jsonl         ← Agent の会話履歴（詳細）</code></pre>
+      </div>
+      <table class="simple-table">
+        <thead>
+          <tr><th>ファイル</th><th>意味</th><th>優先度</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>runs/&lt;session-id&gt;.jsonl</code></td><td>実行ログ。まずここを見る。</td><td><span class="badge r">最初</span></td></tr>
+          <tr><td><code>runs/&lt;session-id&gt;.checkpoint.json</code></td><td>再開用の最新状態。</td><td><span class="badge a">次</span></td></tr>
+          <tr><td><code>runs/&lt;session-id&gt;.heartbeat.json</code></td><td>外部監視用の現在状態。</td><td><span class="badge b">監視</span></td></tr>
+          <tr><td><code>runs/history/&lt;session-id&gt;.jsonl</code></td><td>Agent Framework の会話履歴。</td><td><span class="badge g">詳細</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="danger">
+      <h2>作業ディレクトリに注意</h2>
+      <p>
+        <code>C:\Workspace\sample_agent_framework</code> で実行してください。
+        <code>agent-framework</code> ディレクトリ内で実行すると、相対パスの都合で
+        <code>agent-framework/agent-framework/harness/runs</code> のように二重になります。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="05-loop.html">← ⑤ 長時間ループへ</a>
+      <a href="07-troubleshooting.html">⑦ エラーの読み方へ →</a>
+    </nav>
+  </main>
+</body>
+</html>

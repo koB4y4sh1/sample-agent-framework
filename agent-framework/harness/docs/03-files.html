@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3. ファイルの役割 ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">③ ファイルの役割</p>
+      <h1>ファイルごとに仕事を分けています</h1>
+      <p class="lead">
+        どのファイルを見れば何が分かるか。迷ったら、まずこのページの役割表とコールグラフを見てください。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="02-agent-framework.html">② Agent Framework</a>
+        <a href="04-browser.html">④ ブラウザ操作 →</a>
+      </nav>
+    </section>
+
+    <section>
+      <h2>役割を 4 グループで把握する</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 2-1 ｜ 入口・頭脳・ループ・入出力</p>
+        <div class="cols-2">
+          <div class="layer b">
+            <div class="lname">入口<small>entry</small></div>
+            <div class="ldesc"><code>main.py</code>・<code>settings.py</code><br>引数と環境変数を読み、設定を組み立てる。</div>
+          </div>
+          <div class="layer">
+            <div class="lname">頭脳<small>agent</small></div>
+            <div class="ldesc"><code>agent.py</code>・<code>browser_tools.py</code><br>Agent と、ブラウザを動かすツールを定義する。</div>
+          </div>
+          <div class="layer g">
+            <div class="lname">ループ<small>loop</small></div>
+            <div class="ldesc"><code>run.py</code>・<code>runtime.py</code><br>サイクルを回し、再試行・停止条件を管理する。</div>
+          </div>
+          <div class="layer a">
+            <div class="lname">入出力<small>io</small></div>
+            <div class="ldesc"><code>goal.md</code>・<code>runs/</code><br>目的を受け取り、結果ログを書き出す。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>役割表</h2>
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>ファイル</th>
+            <th>一言でいうと</th>
+            <th>見る場面</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>main.py</code></td><td>コマンド入口</td><td>CLI 引数、<code>--allowed-domain</code>、<code>--max-cycles</code> などを確認する時</td></tr>
+          <tr><td><code>settings.py</code></td><td>環境変数の読み取り</td><td><code>HA_</code> で始まる設定を確認する時</td></tr>
+          <tr><td><code>agent.py</code></td><td>Agent を組み立てる</td><td>LLM・instructions・Toolbox・browser tools の接続を見る時</td></tr>
+          <tr><td><code>browser_tools.py</code></td><td>ブラウザを実際に動かす</td><td>CDP 接続・クリック・入力・スナップショットを見る時</td></tr>
+          <tr><td><code>run.py</code></td><td>長時間ループ本体</td><td>再試行・サイクル実行・停止条件を見る時</td></tr>
+          <tr><td><code>runtime.py</code></td><td>ループ用の部品置き場</td><td>プロンプト・ログ・チェックポイント・結果パースを見る時</td></tr>
+          <tr><td><code>goal.md</code></td><td>ユーザーの目的とログイン情報</td><td>Agent に何を目標として渡すか確認する時</td></tr>
+          <tr><td><code>runs/</code></td><td>実行結果置き場</td><td>何が起きたか・どこで止まったか調べる時</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>呼び出し関係（コールグラフ）</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 2-2 ｜ 誰が誰を呼ぶか</p>
+        <div class="pipe">
+          <div class="node b"><strong>main.py</strong><small>設定を作る</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>run.py</strong><small>ループ開始</small></div>
+          <div class="to">→</div>
+          <div class="node"><strong>agent.py</strong><small>Agent 生成</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>browser_tools.py</strong><small>操作実行</small></div>
+        </div>
+        <div class="legend">
+          <span><i class="dot b"></i>設定</span>
+          <span><i class="dot g"></i>制御・実行</span>
+          <span><i class="dot"></i>判断</span>
+          <span>※ <code>run.py</code> は毎サイクル <code>runtime.py</code> の部品（プロンプト・ログ・パース）を使う</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>起動時の処理順</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 2-3 ｜ 上から順に実行される</p>
+        <div class="seq">
+          <div class="seq-row"><div class="num">1</div><div class="body"><strong>main.py</strong><small>コマンド引数と環境変数から設定を作る。</small></div></div>
+          <div class="seq-row"><div class="num">2</div><div class="body"><strong>run.py</strong><small>ループの準備をして、1 サイクル目を始める。</small></div></div>
+          <div class="seq-row"><div class="num">3</div><div class="body"><strong>agent.py</strong><small>FoundryChatClient・Toolbox・browser_* ツール・Harness Agent を作る。</small></div></div>
+          <div class="seq-row"><div class="num">4</div><div class="body"><strong>runtime.py</strong><small>Agent に渡すサイクル用プロンプトを作る。</small></div></div>
+          <div class="seq-row"><div class="num">5</div><div class="body"><strong>browser_tools.py</strong><small>Agent から呼ばれたらブラウザを操作する。</small></div></div>
+          <div class="seq-row"><div class="num">6</div><div class="body"><strong>runs/</strong><small>結果を JSONL・checkpoint・heartbeat に保存する。</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="warn">
+      <h2>注意</h2>
+      <p>
+        <code>runs/</code> はコードではありません。実行すると増える作業記録です。
+        <code>--resume</code> しないなら削除しても動作には影響しません。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="02-agent-framework.html">← ② Agent Framework と HarnessAgent へ</a>
+      <a href="04-browser.html">④ ブラウザ操作へ →</a>
+    </nav>
+  </main>
+</body>
+</html>

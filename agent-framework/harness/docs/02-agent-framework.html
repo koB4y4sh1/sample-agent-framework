@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2. Agent Framework と HarnessAgent ｜ Harness Browser Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero sub">
+      <p class="eyebrow">② Agent Framework と HarnessAgent</p>
+      <h1>「次の一手を考える脳」は Agent Framework が提供しています</h1>
+      <p class="lead">
+        この Harness の頭脳は、自前のループではなく <strong>Microsoft Agent Framework</strong> の
+        <code>create_harness_agent()</code> で作る <strong>HarnessAgent</strong> です。
+        ツール呼び出し・履歴・Todo・モード・品質チェックまで、エージェントに必要な部品が最初から束ねられています。
+      </p>
+      <nav class="nav">
+        <a href="index.html">← 目次</a>
+        <a href="01-overview.html">① 全体像</a>
+        <a href="03-files.html">③ ファイルの役割 →</a>
+      </nav>
+    </section>
+
+    <section class="note">
+      <h2>一文でいうと</h2>
+      <p>
+        <strong>HarnessAgent = ChatClient（LLM）＋ 指示文 ＋ ツール ＋ プロバイダ群 ＋ ミドルウェア</strong> を
+        1 つにまとめた「自分でツールを呼んで考え続けるエージェント」です。
+        Harness（<code>run.py</code>）は、この HarnessAgent を<strong>毎サイクル 1 回ずつ呼び出す</strong>だけです。
+      </p>
+    </section>
+
+    <section>
+      <h2>HarnessAgent の構成部品</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 2-1 ｜ create_harness_agent() に渡しているもの（agent.py）</p>
+        <div class="layers">
+          <div class="layer b">
+            <div class="lname">ChatClient<small>client=</small></div>
+            <div class="ldesc"><code>FoundryChatClient</code>。LLM 本体との通信。モデル名・プロジェクト・認証を持つ。</div>
+          </div>
+          <div class="layer">
+            <div class="lname">指示文<small>agent_instructions=</small></div>
+            <div class="ldesc">BASE ＋ 許可ドメイン ＋ unattended ＋ ブラウザツールの使い方 ＋ <code>goal.md</code> を結合。</div>
+          </div>
+          <div class="layer g">
+            <div class="lname">ツール<small>tools=</small></div>
+            <div class="ldesc"><code>browser_start</code> / <code>browser_goto</code> / <code>browser_click</code> … 関数ツール群（＝手足）。</div>
+          </div>
+          <div class="layer a">
+            <div class="lname">プロバイダ<small>*_provider=</small></div>
+            <div class="ldesc">履歴・Todo・モードを“外付け能力”として注入する（次節）。</div>
+          </div>
+          <div class="layer v">
+            <div class="lname">ミドルウェア<small>middleware=</small></div>
+            <div class="ldesc">任意。<code>AgentLoopMiddleware.with_judge(...)</code> で応答品質を自己採点させる。</div>
+          </div>
+        </div>
+        <p class="muted" style="margin:14px 0 0">
+          さらに <code>disable_web_search</code> / <code>disable_tool_auto_approval</code> /
+          <code>max_context_window_tokens</code> / <code>max_output_tokens</code> で挙動を絞り込みます。
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>実際の生成コード（要約）</h2>
+      <pre><code>from agent_framework import (
+    AgentLoopMiddleware, AgentModeProvider, FileHistoryProvider,
+    TodoProvider, TodoSessionStore, create_harness_agent,
+)
+from agent_framework.foundry import FoundryChatClient
+
+client = FoundryChatClient(project_endpoint=..., model=..., credential=...)
+
+agent = create_harness_agent(
+    client=client,
+    name="browser-harness-agent",
+    agent_instructions=BASE + DOMAINS + UNATTENDED + BROWSER_USAGE + GOAL,
+    tools=browser_function_tools,            # browser_* ツール
+    history_provider=FileHistoryProvider(history_dir),   # 会話履歴を保存
+    todo_provider=TodoProvider(store=TodoSessionStore()),# 残タスク管理
+    mode_provider=AgentModeProvider(default_mode="execute"),
+    disable_web_search=True,                 # 勝手な Web 検索を禁止
+    disable_tool_auto_approval=True,         # 高頻度ツールは承認なし
+    max_context_window_tokens=..., max_output_tokens=...,
+    middleware=[AgentLoopMiddleware.with_judge(client, criteria=[...])],
+)</code></pre>
+    </section>
+
+    <section>
+      <h2>プロバイダ＝“外付けの能力”</h2>
+      <p>
+        HarnessAgent の強みは、エージェントに必要な周辺機能を <strong>プロバイダ</strong>として差し込める点です。
+        自分でループやメモリを書かなくても、宣言するだけで有効になります。
+      </p>
+      <table class="simple-table">
+        <thead>
+          <tr><th>部品</th><th>クラス</th><th>役割</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge a">履歴</span></td><td><code>FileHistoryProvider</code></td><td>会話履歴をファイルに保存。プロセス再起動後の <code>--resume</code> 材料になる。</td></tr>
+          <tr><td><span class="badge g">Todo</span></td><td><code>TodoProvider</code> / <code>TodoSessionStore</code></td><td>長い作業の「残タスク」をエージェント自身に計画・追跡させる。</td></tr>
+          <tr><td><span class="badge b">モード</span></td><td><code>AgentModeProvider</code></td><td>plan / execute を切り替える。本サンプルは最初から <code>execute</code>。</td></tr>
+          <tr><td><span class="badge v">判定</span></td><td><code>AgentLoopMiddleware.with_judge</code></td><td>応答が基準を満たすかをモデル自身に再採点させる（任意）。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>いちばん大事な点：ループは「二重」になっている</h2>
+      <p>
+        ここを誤解すると全体が分からなくなります。ループは 2 つあり、<strong>内側は Agent Framework の仕事</strong>、
+        <strong>外側が Harness（<code>run.py</code>）の仕事</strong>です。
+      </p>
+      <div class="diagram">
+        <p class="diagram-title">図 2-2 ｜ 外側の Harness ループ × 内側のエージェントループ</p>
+        <div class="layer b" style="border-left-color:var(--blue);margin-bottom:12px">
+          <div class="lname">外側<small>run.py</small></div>
+          <div class="ldesc">サイクルごとに <code>agent.run()</code> を 1 回呼ぶ。再試行・チェックポイント・停止条件を管理（＝<a href="05-loop.html">⑤ 長時間ループ</a>）。</div>
+        </div>
+        <div class="pipe wrap" style="margin-top:4px">
+          <div class="node"><strong>agent.run() 開始</strong><small>1 サイクル＝1 回</small></div>
+          <div class="to">→</div>
+          <div class="node v"><strong>LLM が考える</strong><small>どのツールを呼ぶか</small></div>
+          <div class="to">→</div>
+          <div class="node g"><strong>ツール実行</strong><small>browser_click 等</small></div>
+          <div class="to">→</div>
+          <div class="node a"><strong>結果を LLM へ戻す</strong><small>観測を追加</small></div>
+          <div class="to">↺</div>
+          <div class="node b"><strong>最終応答</strong><small>LOOP_STATUS 付き</small></div>
+        </div>
+        <div class="legend">
+          <span><i class="dot v"></i>内側ループ（Agent Framework が自動で回す）</span>
+          <span>↺ ツールが必要な間は LLM ↔ ツールを繰り返す</span>
+        </div>
+      </div>
+      <div class="cols-2">
+        <div class="ok">
+          <h3>内側ループ（フレームワーク担当）</h3>
+          <p><code>agent.run()</code> の<strong>中で自動</strong>に回る。LLM がツールを呼び、結果を読み、また考える——を「最終応答」が出るまで繰り返す。</p>
+        </div>
+        <div class="note">
+          <h3>外側ループ（Harness 担当）</h3>
+          <p><code>run.py</code> が <code>agent.run()</code> を<strong>サイクルとして何度も</strong>呼ぶ。長時間化・再開・停止判定はこちら。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>呼び出し方：セッションと run</h2>
+      <div class="diagram">
+        <p class="diagram-title">図 2-3 ｜ run.py から HarnessAgent を動かす最小手順</p>
+        <div class="seq">
+          <div class="seq-row"><div class="num">1</div><div class="body"><strong>build_harness_agent(config)</strong><small><code>create_harness_agent()</code> で HarnessAgent を組み立てる。</small></div></div>
+          <div class="seq-row"><div class="num">2</div><div class="body"><strong>agent.create_session(session_id=…)</strong><small>会話の連続性を持つ<strong>セッション</strong>（スレッド）を 1 本作る。</small></div></div>
+          <div class="seq-row"><div class="num">3</div><div class="body"><strong>await agent.run(prompt, session=session)</strong><small>サイクル用プロンプトを渡して 1 回実行。内側ループが回り、最終応答が返る。</small></div></div>
+          <div class="seq-row"><div class="num">4</div><div class="body"><strong>LOOP_STATUS を解析</strong><small>応答テキストから CONTINUE / COMPLETE / NEEDS_USER / BLOCKED を読み取り、次サイクルへ。</small></div></div>
+        </div>
+      </div>
+      <pre><code># run.py（要約）
+runtime = await build_harness_agent(agent_config)
+agent   = runtime.agent
+session = agent.create_session(session_id=loop_config.session_id)
+
+for cycle in range(...):                       # 外側ループ
+    prompt = LOOP_PROMPT.format(...)
+    result = await asyncio.wait_for(
+        agent.run(prompt, session=session),    # 内側ループはこの中
+        timeout=cycle_timeout_seconds,
+    )
+    # result.text から LOOP_STATUS を解析して継続/停止を決める</code></pre>
+    </section>
+
+    <section>
+      <h2>ふつうの ChatAgent との違い</h2>
+      <table class="simple-table">
+        <thead>
+          <tr><th>観点</th><th>素の ChatClient / ChatAgent</th><th>HarnessAgent</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>ツール呼び出しループ</td><td>自分で実装しがち</td><td><span class="badge g">内蔵</span>（自動で回す）</td></tr>
+          <tr><td>履歴・再開</td><td>自前で保存</td><td><span class="badge g">history_provider</span></td></tr>
+          <tr><td>タスク計画</td><td>プロンプト頼み</td><td><span class="badge g">todo_provider</span></td></tr>
+          <tr><td>plan / execute</td><td>なし</td><td><span class="badge g">mode_provider</span></td></tr>
+          <tr><td>品質の自己チェック</td><td>自前</td><td><span class="badge g">judge middleware</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="warn">
+      <h2>この構成での約束ごと</h2>
+      <p>
+        Agent には <code>tool_search</code> / <code>call_tool</code> を直接使わせず、<code>browser_*</code> ツールだけを見せます。
+        また <code>disable_web_search=True</code> で勝手な Web 検索を止め、ブラウザ操作は高頻度なので
+        <code>disable_tool_auto_approval=True</code> にしています。送信・削除などの“意味のある承認”は、
+        指示文側で <code>LOOP_STATUS: NEEDS_USER</code> に止める設計です（詳細は <a href="04-browser.html">④ ブラウザ操作</a>）。
+      </p>
+    </section>
+
+    <section class="note">
+      <h2>出典</h2>
+      <p>
+        Agent Framework のエージェント概念は公式ドキュメントに準拠しています：
+        <a href="https://learn.microsoft.com/ja-jp/agent-framework/agents/?pivots=programming-language-python" target="_blank" rel="noopener">Microsoft Agent Framework — Agents（Python）</a>。
+        実行ログの <code>start</code> レコードにも同じ URL を <code>source_docs</code> として記録しています。
+      </p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="01-overview.html">← ① 全体像へ</a>
+      <a href="03-files.html">③ ファイルの役割へ →</a>
+    </nav>
+  </main>
+</body>
+</html>
