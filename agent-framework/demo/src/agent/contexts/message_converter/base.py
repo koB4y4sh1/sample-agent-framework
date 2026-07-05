@@ -1,203 +1,205 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from agent_framework import Content, Message
 
-from ._normalizer import MessageHistoryNormalizer
-from ._reasoning_replay import ReasoningReplaySanitizer
-from ._replay_payload_sanitizer import ReplayPayloadSanitizer
-from ._types import ProviderFamily, ReasoningPolicy
+from ._types import ProviderFamily
 
+# ================================
+# region Converter
+# ================================
+class BaseMessageConverter:
+    """Content の種類ごとに role を決め、必要なら Message を分割する。
 
-class BaseProviderMessageConverter:
-    """保存済みの Message を、もう一度 LLM に渡せる形へ変換する基底クラス。
-
-    Agent Framework が保存する Message には、実行時の内部情報や provider 固有の
-    payload が混ざる。これをそのまま別の LLM 呼び出しに再投入すると、role の不整合や
-    provider が受け付けないフィールドで失敗することがある。
-
-    このクラスの責務:
-    - content の種類に応じて role を決め直す
-      例: `function_call` は assistant、`function_result` は tool
-    - 再投入に不要な内部情報を落とす
-      例: `raw_representation`、一部の `additional_properties`
-    - reasoning を再利用できる場合は残し、できない場合は text 化または削除する
-
-    注意:
-    tool call と tool result の順序補正はここでは行わない。
-    それは `MessageHistoryNormalizer` の責務。
+    変換ルール:
+    - type = `text` / `data`
+        - 元の Message の role を使う
+    - type =  `text_reasoning`
+        - `role="assistant"` で `type="text"` に変換
+        - 推論本文の先頭に [reasoning] ラベルを付ける
+        - 推論本文が空なら削除
+    - type = `function_call` / `function_approval_request` / tool call 系
+        - `role="assistant"` の Message に置く
+    - type = `function_result` / tool result 系
+        - `role="tool"` の Message に置く
+    - 上記以外の type 削除
     """
-
-    _DIRECT_ROLES = {"system", "user", "assistant"}
-    _ASSISTANT_CONTENT_TYPES = {
-        "function_call",
-        "function_approval_request",
-        "mcp_server_tool_call",
-        "mcp_server_tool_result",
-        "code_interpreter_tool_call",
-        "image_generation_tool_call",
-        "shell_tool_call",
-    }
-    _TOOL_CONTENT_TYPES = {
-        "function_result",
-        "code_interpreter_tool_result",
-        "shell_tool_result",
-        "shell_command_output",
-    }
-    _DROP_CONTENT_TYPES = {"usage", "hosted_vector_store"}
 
     def __init__(
         self,
         *,
-        target_provider_family: ProviderFamily | None = None,
-        reasoning_policy: ReasoningPolicy = "as_text",
         reasoning_label: str = "[reasoning]",
     ) -> None:
-        self._target_provider_family = target_provider_family
-        self._payload_sanitizer = ReplayPayloadSanitizer(
-            lambda content: self._sanitize_content(content, source_provider_family=None)
-        )
-        self._reasoning_sanitizer = ReasoningReplaySanitizer(
-            target_provider_family=target_provider_family,
-            reasoning_policy=reasoning_policy,
-            reasoning_label=reasoning_label,
-            sanitize_mapping=self._payload_sanitizer.sanitize_mapping,
-        )
+        self._reasoning_label = reasoning_label
 
     def convert_messages(self, messages: Sequence[Message]) -> list[Message]:
-        """複数の Message を、provider に再投入しやすい Message リストへ変換する。
-
-        1つの Message が複数の Message に分かれることがある。
-        例: assistant の Message に `function_result` が混ざっている場合、
-        assistant Message と tool Message に分割する。
-        """
+        """各 Message に `convert_message` を適用し、結果を1つの list にする。"""
         converted: list[Message] = []
         for message in messages:
             converted.extend(self.convert_message(message))
         return converted
 
     def convert_message(self, message: Message) -> list[Message]:
-        """1つの Message を、role ごとに整った Message リストへ変換する。
+        """1つの Message を、Content の種類に合う role の Message へ変換する。
 
-        content を1つずつ見て、不要な情報を落とし、正しい role を決める。
-        変換後に有効な content が残らなければ空リストを返す。
+        例:
+        assistant Message に `[text_reasoning, function_call]` がある場合:
+        - OpenAI 向けなら `text_reasoning` と `function_call` を assistant Message に残す。
+        - Common/Anthropic 向けで `text_reasoning.text == ""` なら reasoning を削除し、
+        `function_call` だけの assistant Message にする。
+
+        例:
+        assistant Message に `[text, function_result]` が混ざっている場合:
+        - text は assistant Message
+        - function_result は tool Message
+        に分割する。
         """
         converted: list[Message] = []
         current_role: str | None = None
         current_contents: list[Content] = []
-        source_provider_family = self._reasoning_sanitizer.source_provider_family(message)
-        # 承認要求の中には元の function_call が埋め込まれている。
-        # 同じ call_id の function_call がすでにある場合は、重複して再投入しない。
-        function_call_ids = {
-            content.call_id
-            for content in message.contents
-            if content.type == "function_call" and isinstance(content.call_id, str)
-        }
+
+        # メッセージがどのproviderによって生成されたかの情報を取得する。
+        source_provider_family = self._source_provider_family(message)
 
         for content in message.contents:
-            sanitized = self._sanitize_content(
+            # 1. LLM に送らない Content は削除する。
+            prepared = self._convert_content(
                 content,
                 source_provider_family=source_provider_family,
-                existing_function_call_ids=function_call_ids,
             )
-            if sanitized is None:
+            if prepared is None:
                 continue
 
-            role = self._content_role(message.role, sanitized)
-            if role is None:
-                continue
-
-            if current_role is not None and role != current_role:
-                converted.append(self._build_message(message, current_role, current_contents))
+            # 2. Content の種類に応じた、role を決める。
+            # tool call は assistant、tool result は tool、approval response は user など。
+            # 3. role が変わった = Message を分割する。
+            if current_role is not None and message.role != current_role:
+                converted.append(
+                    self._build_message(message, current_role, current_contents)
+                )
                 current_contents = []
 
-            current_role = role
-            current_contents.append(sanitized)
+            current_role = message.role
+            current_contents.append(prepared)
 
+        # 残った最後の Message を追加する。
         if current_role is not None and current_contents:
-            converted.append(self._build_message(message, current_role, current_contents))
+            converted.append(
+                self._build_message(message, current_role, current_contents)
+            )
 
         return converted
 
-    def _build_message(self, original: Message, role: str, contents: list[Content]) -> Message:
+    def _build_message(
+        self, original: Message, role: str, contents: list[Content]
+    ) -> Message:
         return Message(
             role=role,
             contents=contents,
             author_name=original.author_name if role == original.role else None,
-            additional_properties=self._payload_sanitizer.sanitize_mapping(original.additional_properties),
+            additional_properties=original.additional_properties,
         )
 
-    def _content_role(self, original_role: str, content: Content) -> str | None:
-        """content の種類から、再投入時に使う role を決める。"""
-        if content.type in self._ASSISTANT_CONTENT_TYPES:
-            return "assistant"
-        if content.type in self._TOOL_CONTENT_TYPES:
-            return "tool"
-        if content.type == "function_approval_response":
-            return "user"
-        if original_role in self._DIRECT_ROLES:
-            return original_role
-        if original_role == "tool":
-            return "tool" if content.type in self._TOOL_CONTENT_TYPES else "user"
-        return "user"
-
-    def _sanitize_content(
+    def _convert_content(
         self,
         content: Content,
         *,
-        source_provider_family: ProviderFamily | None,
-        existing_function_call_ids: set[str] | None = None,
+        source_provider_family: ProviderFamily | None = None,
     ) -> Content | None:
-        """provider に再投入してよい content だけを残し、危ない payload を掃除する。"""
-        if content.type in self._DROP_CONTENT_TYPES:
-            return None
-        if content.type == "text_reasoning":
-            return self._reasoning_sanitizer.sanitize_content(
-                content,
-                source_provider_family=source_provider_family,
-            )
+        """1つの Content を送信用 Content に変換する。不要なら None を返す。
 
-        data = self._payload_sanitizer.sanitize_mapping(content.to_dict(exclude_none=True))
-        data["type"] = content.type
-        self._payload_sanitizer.sanitize_content_data(data)
-
-        # 空文字の text は provider によってエラー原因になるため捨てる。
-        if data.get("type") == "text" and not data.get("text"):
-            return None
-
-        if data.get("type") == "function_approval_request":
-            data = self._normalize_function_approval_request(data, existing_function_call_ids or set())
-            if not data:
+        - LLM に送らない Content は None を返す。
+        - `text` は `_convert_text` に委譲する。
+        - `text_reasoning` は `_build_reasoning_content` に委譲する。
+        - `function_approval_request` は必要なら `function_call` に変換する。
+        - tool call / tool result 系は `_convert_tool_call` / `_convert_tool_result` に委譲する。
+        - その他は 返却 しない
+        """
+        match content.type:
+            case "text":
+                return self._convert_text(content)
+            case "data" | "uri":
+                return self._convert_data(content)
+            case "text_reasoning":
+                return self._convert_text_reasoning(
+                    content, source_provider_family=source_provider_family
+                )
+            case (
+                "function_call"  # ローカルツール呼び出
+                | "mcp_server_tool_call"  # host MCP ツール呼び出し
+                | "code_interpreter_tool_call"  # Code Interpreter ツール呼び出し
+                | "shell_tool_call"  # Shell ツール呼び出し
+                | "image_generation_tool_call"  # 画像生成ツール呼び出し
+            ):
+                return self._convert_tool_call(content)
+            case (
+                "function_result"  # ローカルツール実行結果
+                | "mcp_server_tool_result"  # host MCP ツール実行結果
+                | "code_interpreter_tool_result"  # Code Interpreter ツール実行結果
+                | "shell_tool_result"  # Shell ツール実行結果
+                | "shell_command_output"
+            ):
+                return self._convert_tool_result(content)
+            case "function_approval_request":
+                return self._convert_approval_request(content)
+            case "function_approval_response":
+                return content
+            case _:
                 return None
 
-        return Content.from_dict(data)
+    def _convert_text(self, content: Content) -> Content | None:
+        """text Content を送信用に変換する。空文字なら None を返す。"""
+        if not content.text:
+            return None
+        return content
 
-    def _normalize_function_approval_request(self, data: dict, existing_function_call_ids: set[str]) -> dict:
-        """承認要求を、provider が扱いやすい function_call 形へ寄せる。"""
-        function_call = data.get("function_call")
-        if not isinstance(function_call, dict):
-            return data
+    def _convert_tool_call(self, content: Content) -> Content | None:
+        return content
 
-        additional_properties = function_call.get("additional_properties")
-        if isinstance(additional_properties, dict) and additional_properties.get("server_label"):
-            return data
+    def _convert_tool_result(self, content: Content) -> Content | None:
+        return content
 
-        call_id = function_call.get("call_id")
-        if isinstance(call_id, str) and call_id in existing_function_call_ids:
-            return {}
+    def _convert_data(self, content: Content) -> Content | None:
+        return content
 
-        normalized = dict(function_call)
-        normalized["type"] = "function_call"
-        return normalized
+    def _convert_approval_request(self, content: Content) -> Content | None:
+        return content
 
+    def _convert_text_reasoning(
+        self,
+        content: Content,
+        *,
+        source_provider_family: ProviderFamily | None = None,
+    ) -> Content | None:
+        """`text_reasoning` を送信用 Content に変換する。
 
-CommonMessageConverter = BaseProviderMessageConverter
+        base では native reasoning を復元せず、常に `text` Content に落とす。
+        - `text == ""` なら削除する（None を返す）。
+        - それ以外は `reasoning_label` を付けた `text` Content にする。
+
+        provider 固有の native reasoning 復元（OpenAI の `id`+`encrypted_content`、
+        Anthropic の `protected_data` など）は、サブクラスがこのメソッドを override し、
+        復元できる場合だけ `_convert_reasoning_content` を呼び、
+        それ以外は `super()._convert_reasoning_content(...)` に委譲して実装する。
+        """
+        if not content.text:
+            return None
+        if self._reasoning_label:
+            return Content.from_text(text=f"{self._reasoning_label}\n{content.text}")
+        return Content.from_text(text=content.text)
+
+    def _source_provider_family(self, message: Message) -> ProviderFamily | None:
+        execution = message.additional_properties.get("execution")
+        if not isinstance(execution, Mapping):
+            return None
+        provider_family = execution.get("provider_family")
+        if provider_family in {"anthropic", "openai", "google"}:
+            return provider_family
+        return None
+
 
 __all__ = [
-    "BaseProviderMessageConverter",
-    "CommonMessageConverter",
-    "MessageHistoryNormalizer",
+    "BaseMessageConverter",
     "ProviderFamily",
-    "ReasoningPolicy",
 ]

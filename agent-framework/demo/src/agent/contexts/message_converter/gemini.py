@@ -1,26 +1,30 @@
 from __future__ import annotations
 
-from .base import BaseProviderMessageConverter, ReasoningPolicy
+from agent_framework import Content
+
+from ._types import ProviderFamily
+from .base import BaseMessageConverter
 
 
-class GeminiMessageConverter(BaseProviderMessageConverter):
-    """Gemini に再投入するための Message converter。
-
-    内部の provider family 名は Agent Framework 側の表現に合わせて `google` を使う。
-    基本処理は `BaseProviderMessageConverter` に任せる。
-    """
-
-    def __init__(
+class GeminiMessageConverter(BaseMessageConverter):
+    def _convert_text_reasoning(
         self,
+        content: Content,
         *,
-        reasoning_policy: ReasoningPolicy = "as_text",
-        reasoning_label: str = "[reasoning]",
-    ) -> None:
-        super().__init__(
-            target_provider_family="google",
-            reasoning_policy=reasoning_policy,
-            reasoning_label=reasoning_label,
+        source_provider_family: ProviderFamily | None,
+    ) -> Content | None:
+        if source_provider_family == "google":
+            return self._build_native_reasoning_content(content)
+        return super()._convert_text_reasoning(
+            content, source_provider_family=source_provider_family
         )
 
+    def _build_native_reasoning_content(self, content: Content) -> Content:
+        data = content.to_dict(exclude_none=True)
+        data.pop("raw_representation", None)
+        return Content.from_dict(data)
 
-__all__ = ["GeminiMessageConverter"]
+
+GeminiMessageConverter = GeminiMessageConverter
+
+__all__ = ["GeminiMessageConverter", "GeminiMessageConverter"]

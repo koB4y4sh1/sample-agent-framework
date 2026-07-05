@@ -13,14 +13,13 @@ from agent_framework import (
     SupportsAgentRun,
 )
 
-from .contexts.message_converter import EXECUTED_INPUT_MESSAGES_METADATA_KEY
-from .contexts.message_converter import MessageHistoryNormalizer
+from .contexts.message_converter import ToolExchangeResolver
 from .store.base import MessageStore
+
+_ORIGINAL_INPUT_MESSAGES_METADATA_KEY = "local_history:original_input_messages"
 
 
 class LocalHistoryProvider(HistoryProvider):
-    """会話履歴を MessageStore に永続化する Provider。"""
-
     DEFAULT_SOURCE_ID: ClassVar[str] = uuid8().hex
 
     def __init__(
@@ -43,7 +42,21 @@ class LocalHistoryProvider(HistoryProvider):
         self._max_messages = max_messages
         self._execution_metadata_source_id = execution_metadata_source_id
         self._execution_metadata_message_key = execution_metadata_message_key
-        self._message_normalizer = MessageHistoryNormalizer()
+        self._message_arranger = ToolExchangeResolver()
+
+    async def before_run(
+        self,
+        *,
+        agent: SupportsAgentRun,
+        session: AgentSession,
+        context: SessionContext,
+        state: dict[str, Any],
+    ) -> None:
+        context.metadata[_ORIGINAL_INPUT_MESSAGES_METADATA_KEY] = list(context.input_messages)
+        context.context_messages[self.source_id] = await self.get_messages(
+            context.session_id,
+            state=state,
+        )
 
     async def get_messages(
         self,
@@ -52,7 +65,6 @@ class LocalHistoryProvider(HistoryProvider):
         state: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> list[Message]:
-        """保存済みメッセージを取得する。"""
         stored_messages = await _maybe_await(self._store.read_messages(session_id))
         return stored_messages
 
@@ -64,12 +76,9 @@ class LocalHistoryProvider(HistoryProvider):
         state: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        """メッセージを既存履歴に追加して保存する。"""
         existing_messages = await _maybe_await(self._store.read_messages(session_id))
         combined_messages = [*existing_messages, *messages]
-        combined_messages = self._message_normalizer.normalize_messages(
-            combined_messages
-        )
+        combined_messages = self._message_arranger.resolve_messages(combined_messages)
         if self._max_messages is not None:
             combined_messages = combined_messages[-self._max_messages :]
         await _maybe_await(self._store.write_messages(session_id, combined_messages))
@@ -82,11 +91,18 @@ class LocalHistoryProvider(HistoryProvider):
         context: SessionContext,
         state: dict[str, Any],
     ) -> None:
-        """実行後、入力・出力メッセージを履歴として保存する。"""
+        original_input_messages = context.metadata.pop(
+            _ORIGINAL_INPUT_MESSAGES_METADATA_KEY,
+            None,
+        )
+        if isinstance(original_input_messages, list) and all(
+            isinstance(item, Message) for item in original_input_messages
+        ):
+            context.input_messages = original_input_messages
+
         messages_to_store: list[Message] = []
-        messages_to_store.extend(self._get_context_messages_to_store(context))
         if self.store_inputs:
-            messages_to_store.extend(self._get_input_messages_to_store(context))
+            messages_to_store.extend(context.input_messages)
         if self.store_outputs and context.response and context.response.messages:
             messages_to_store.extend(context.response.messages)
 
@@ -112,16 +128,6 @@ class LocalHistoryProvider(HistoryProvider):
                 metadata
             )
         return saved_messages
-
-    def _get_input_messages_to_store(self, context: SessionContext) -> list[Message]:
-        executed_input_messages = context.metadata.get(
-            EXECUTED_INPUT_MESSAGES_METADATA_KEY
-        )
-        if isinstance(executed_input_messages, list) and all(
-            isinstance(item, Message) for item in executed_input_messages
-        ):
-            return list(executed_input_messages)
-        return list(context.input_messages)
 
 
 async def _maybe_await(value: Any) -> Any:

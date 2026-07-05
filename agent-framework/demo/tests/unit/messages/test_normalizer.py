@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agent.contexts.message_converter import MessageHistoryNormalizer
+from agent.contexts.message_converter import ToolExchangeResolver as MessageHistoryArranger
 from agent_framework import Content, Message
 
 
@@ -51,7 +51,7 @@ class TestToolHistoryNormalization:
             Message("assistant", [Content.from_text("answer")]),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert len(normalized) == 1
         assert normalized[0].role == "assistant"
@@ -100,7 +100,7 @@ class TestToolHistoryNormalization:
             )
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert len(normalized) == 1
         assert [content.type for content in normalized[0].contents] == ["text"]
@@ -186,7 +186,7 @@ class TestToolHistoryNormalization:
             Message("tool", [Content.from_function_result("call_1", result="loaded")]),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert [message.role for message in normalized] == [
             "assistant",
@@ -303,7 +303,7 @@ class TestMcpToolHistoryNormalization:
             ),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert len(normalized) == 1
         assert [content.type for content in normalized[0].contents] == [
@@ -397,7 +397,7 @@ class TestMcpToolHistoryNormalization:
             ),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert [message.role for message in normalized] == [
             "assistant",
@@ -453,7 +453,7 @@ class TestMcpToolHistoryNormalization:
             ],
         )
 
-        normalized = MessageHistoryNormalizer().normalize_messages([message])
+        normalized = MessageHistoryArranger().resolve_messages([message])
 
         assert len(normalized) == 1
         assert [content.type for content in normalized[0].contents] == ["text"]
@@ -497,7 +497,7 @@ class TestMcpToolHistoryNormalization:
             ],
         )
 
-        normalized = MessageHistoryNormalizer().normalize_messages([message])
+        normalized = MessageHistoryArranger().resolve_messages([message])
 
         assert len(normalized) == 1
         assert [content.type for content in normalized[0].contents] == ["text"]
@@ -558,7 +558,7 @@ class TestApprovalHistoryNormalization:
             Message("tool", [function_result]),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert [message.role for message in normalized] == ["assistant", "tool"]
         assert [content.type for content in normalized[0].contents] == [
@@ -616,7 +616,7 @@ class TestApprovalHistoryNormalization:
             ),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert len(normalized) == 2
         assert normalized[0].role == "user"
@@ -684,7 +684,7 @@ class TestApprovalHistoryNormalization:
             Message("tool", [function_result]),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert [message.role for message in normalized] == ["assistant", "tool"]
         assert [content.type for content in normalized[0].contents] == [
@@ -728,7 +728,7 @@ class TestApprovalHistoryNormalization:
             Message("user", [approval_response]),
         ]
 
-        normalized = MessageHistoryNormalizer().normalize_messages(messages)
+        normalized = MessageHistoryArranger().resolve_messages(messages)
 
         assert [message.role for message in normalized] == [
             "assistant",
@@ -761,7 +761,7 @@ class TestApprovalHistoryNormalization:
             "call_1", function_call
         )
 
-        normalized = MessageHistoryNormalizer().normalize_messages(
+        normalized = MessageHistoryArranger().resolve_messages(
             [Message("assistant", [approval_request])]
         )
 

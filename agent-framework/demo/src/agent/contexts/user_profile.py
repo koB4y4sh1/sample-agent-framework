@@ -15,7 +15,7 @@ from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
 from utils.print import print_gray
 
-from .message_converter import BaseProviderMessageConverter, MessageHistoryNormalizer, ProviderMessageConverter
+from .message_converter import AnthropicMessageConverter, MessageConverter, ToolExchangeResolver
 
 
 class UserProfile(BaseModel):
@@ -42,16 +42,16 @@ class UserProfileContextProvider(ContextProvider):
         history_source_id: str,
         source_id: str | None = None,
         refresh_interval: int = 3,
-        message_converter: BaseProviderMessageConverter | None = None,
-        message_normalizer: MessageHistoryNormalizer | None = None,
+        message_converter: MessageConverter | None = None,
+        message_arranger: ToolExchangeResolver | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
         self._analyser_client = analyser_client
         self._model = model
         self._history_source_id = history_source_id
         self._refresh_interval = refresh_interval
-        self._message_converter = message_converter or ProviderMessageConverter(target_provider_family="anthropic")
-        self._message_normalizer = message_normalizer or MessageHistoryNormalizer()
+        self._message_converter = message_converter or AnthropicMessageConverter()
+        self._message_arranger = message_arranger or ToolExchangeResolver()
         self.PROFILE_ROOT_DIR.mkdir(parents=True, exist_ok=True)
 
     def _debug(self, message: str) -> None:
@@ -181,8 +181,8 @@ class UserProfileContextProvider(ContextProvider):
         )
 
     async def _extract_profile(self, messages: list[Message]) -> UserProfile | None:
-        normalized_messages = self._message_normalizer.normalize_messages(messages)
-        common_messages = self._message_converter.convert_messages(normalized_messages)
+        arranged_messages = self._message_arranger.resolve_messages(messages)
+        common_messages = self._message_converter.convert_messages(arranged_messages)
         if not common_messages:
             return None
 

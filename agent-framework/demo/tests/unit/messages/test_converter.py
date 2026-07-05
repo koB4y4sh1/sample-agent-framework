@@ -160,54 +160,6 @@ class TestReasoningConversion:
         assert converted[0].contents[0].type == "text"
         assert converted[0].contents[0].text == "[reasoning]\nreasoning"
 
-    def test_drops_reasoning_when_policy_is_drop(self) -> None:
-        r"""正常系：reasoningを捨てる設定の場合、text_reasoningは除外されること
-
-        入力例:
-            {
-                "role": "assistant",
-                "contents": [
-                    {"type": "text_reasoning", "text": "reasoning"},
-                    {
-                        "type": "function_call",
-                        "call_id": "call_1",
-                        "name": "get_weather",
-                        "arguments": {"location": "Tokyo"}
-                    }
-                ]
-            }
-
-        期待例:
-            {
-                "role": "assistant",
-                "contents": [
-                    {
-                        "type": "function_call",
-                        "call_id": "call_1",
-                        "name": "get_weather",
-                        "arguments": "{\"location\": \"Tokyo\"}"
-                    }
-                ]
-            }
-        """
-        message = Message(
-            "assistant",
-            [
-                Content.from_text_reasoning(text="reasoning"),
-                Content.from_function_call(
-                    "call_1", "get_weather", arguments={"location": "Tokyo"}
-                ),
-            ],
-        )
-
-        converted = CommonMessageConverter(reasoning_policy="drop").convert_message(
-            message
-        )
-
-        assert len(converted) == 1
-        assert converted[0].role == "assistant"
-        assert [content.type for content in converted[0].contents] == ["function_call"]
-
     def test_drops_empty_reasoning_when_broken_reasoning(self) -> None:
         r"""異常系：text化もtext_reasoning化もできないreasoningは、messageごと渡さないこと
 
@@ -435,7 +387,7 @@ class TestFunctionApprovalConversion:
         converted_call = converted[0].contents[1]
         assert converted_call.call_id == "call_1"
         assert converted_call.name == "get_weather"
-        assert converted_call.arguments == '{"location": "Tokyo"}'
+        assert converted_call.arguments == {"location": "Tokyo"}
 
     def test_keeps_mcp_approval_request_for_provider(self) -> None:
         r"""正常系：MCP承認要求(server_labelが存在する要求)は function_approval_request として渡されること
@@ -591,7 +543,7 @@ class TestFunctionApprovalConversion:
         assert converted[0].contents[0].type == "function_approval_response"
         nested_call = converted[0].contents[0].function_call
         assert nested_call is not None
-        assert nested_call.arguments == '{"env": "dev"}'
+        assert nested_call.arguments == {"env": "dev"}
 
 
 class TestToolConversion:
@@ -656,10 +608,31 @@ class TestToolConversion:
         assert converted[0].role == "assistant"
         assert [content.type for content in converted[0].contents] == ["function_call"]
         function_call = converted[0].contents[0]
-        assert function_call.arguments == '{"location": "Tokyo"}'
-        assert "fc_id" not in function_call.additional_properties
+        assert function_call.arguments == {"location": "Tokyo"}
+        assert function_call.additional_properties["fc_id"] == "fc_response_scoped"
         assert function_call.additional_properties["status"] == "completed"
         assert function_call.raw_representation is None
+
+    def test_openai_stringifies_function_call_arguments(self) -> None:
+        message = Message(
+            "assistant",
+            [
+                Content.from_function_call(
+                    "call_1",
+                    "get_weather",
+                    arguments={"location": "Tokyo"},
+                    additional_properties={"fc_id": "fc_response_scoped"},
+                )
+            ],
+        )
+
+        converted = ProviderMessageConverter(
+            target_provider_family="openai"
+        ).convert_message(message)
+
+        function_call = converted[0].contents[0]
+        assert function_call.arguments == '{"location": "Tokyo"}'
+        assert function_call.additional_properties["fc_id"] == "fc_response_scoped"
 
 
 class TestMcpToolConversion:
@@ -754,7 +727,7 @@ class TestMcpToolConversion:
         assert converted[0].role == "assistant"
         tool_result = converted[0].contents[1]
         assert tool_result.type == "mcp_server_tool_result"
-        assert tool_result.additional_properties == {}
+        assert tool_result.additional_properties == {"fc_id": "response_scoped"}
         assert tool_result.output[0]["type"] == "text"
         assert "additional_properties" not in tool_result.output[0]
         assert "raw_representation" not in tool_result.output[0]

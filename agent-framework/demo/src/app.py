@@ -10,13 +10,10 @@ from agent import (
     DemoSkills,
     create_content_understanding_context_provider_from_env,
     ExecutionContextProvider,
-    AnthropicReplayConverter,
     LocalHistoryProvider,
     LocalStore,
     MessageConversionContextProvider,
     PreferencePolicyProvider,
-    ProviderMessageConverter,
-    ReasoningPolicy,
     AgentMiddlewareConfig,
     ToolRegistry,
     UserProfileContextProvider,
@@ -43,7 +40,6 @@ class DemoConfig:
     compaction_summary_target_count: int = 4
     compaction_summary_threshold: int = 2
     compaction_keep_last_groups: int = 20
-    reasoning_policy: ReasoningPolicy = "as_text"
     progressive_tool_exposure: bool = True
     middleware: AgentMiddlewareConfig = AgentMiddlewareConfig()
 
@@ -69,24 +65,14 @@ class DemoApplication:
             store=self.store,
             max_messages=self.config.history_limit,
         )
-        self.message_converter = ProviderMessageConverter(
-            target_provider_family=self.provider_family,
-            reasoning_policy=self.config.reasoning_policy,
-        )
-        self.profile_message_converter = ProviderMessageConverter(
-            target_provider_family="anthropic",
-            reasoning_policy=self.config.reasoning_policy,
-        )
         self.message_conversion_provider = MessageConversionContextProvider(
             history_source_id=self.history_provider.source_id,
-            message_converter=self.message_converter,
-            replay_converter=AnthropicReplayConverter() if self.provider_family == "anthropic" else None,
+            target_provider_family=self.provider_family,
         )
         self.memory_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
             model=self.config.model,
             history_source_id=self.history_provider.source_id,
-            message_converter=self.profile_message_converter,
         )
         self.execution_context_provider = ExecutionContextProvider(
             model=self.config.model,
@@ -182,7 +168,7 @@ class DemoSessionRuntime:
             session_id=session_id,
             session=session,
             model_name=model_name,
-            provider_family=app.provider_family,
+            provider_family=app.model_settings.provider_family,
         )
 
     def switch_model(self, model_name: str) -> "DemoSessionRuntime":

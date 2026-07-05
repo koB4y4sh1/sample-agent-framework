@@ -5,27 +5,40 @@ from typing import Any
 
 from agent_framework import Content, Message
 
-from .base import BaseProviderMessageConverter, ReasoningPolicy
+from ._types import ProviderFamily
+from .base import BaseMessageConverter
 
 
-class AnthropicMessageConverter(BaseProviderMessageConverter):
+class AnthropicMessageConverter(BaseMessageConverter):
     """Anthropic に再投入するための Message converter。
 
-    基本処理は `BaseProviderMessageConverter` に任せる。
-    ここでは target provider が Anthropic であることだけを明示する。
+    共通の replay 変換をしたあと、Anthropic が直接受け付けない tool content を
+    `AnthropicReplayConverter` で function_call/result へ変換する。
+    native reasoning は `protected_data` があるものだけそのまま残す。
     """
 
-    def __init__(
+    def __init__(self, *, reasoning_label: str = "[reasoning]") -> None:
+        super().__init__(reasoning_label=reasoning_label)
+        self._anthropic_replay_converter = AnthropicReplayConverter()
+
+    def convert_message(self, message: Message) -> list[Message]:
+        common_messages = super().convert_message(message)
+        return self._anthropic_replay_converter.convert_messages(common_messages)
+
+    def _convert_text_reasoning(
         self,
+        content: Content,
         *,
-        reasoning_policy: ReasoningPolicy = "as_text",
-        reasoning_label: str = "[reasoning]",
-    ) -> None:
-        super().__init__(
-            target_provider_family="anthropic",
-            reasoning_policy=reasoning_policy,
-            reasoning_label=reasoning_label,
-        )
+        source_provider_family: ProviderFamily | None,
+    ) -> Content | None:
+        if source_provider_family == "anthropic" and content.protected_data:
+            return self._build_native_reasoning_content(content)
+        return super()._convert_text_reasoning(content)
+
+    def _build_native_reasoning_content(self, content: Content) -> Content:
+        data = content.to_dict(exclude_none=True)
+        data.pop("raw_representation", None)
+        return Content.from_dict(data)
 
 
 class AnthropicReplayConverter:
