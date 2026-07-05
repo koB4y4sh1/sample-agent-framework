@@ -144,7 +144,7 @@ class BaseMessageConverter:
             case "function_approval_request":
                 return self._convert_approval_request(content)
             case "function_approval_response":
-                return content
+                return self._convert_approval_response(content)
             case _:
                 return None
 
@@ -164,6 +164,9 @@ class BaseMessageConverter:
         return content
 
     def _convert_approval_request(self, content: Content) -> Content | None:
+        return content
+
+    def _convert_approval_response(self, content: Content) -> Content | None:
         return content
 
     def _convert_text_reasoning(
