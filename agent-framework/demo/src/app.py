@@ -69,17 +69,17 @@ class DemoApplication:
             history_source_id=self.history_provider.source_id,
             target_provider_family=self.provider_family,
         )
-        self.memory_provider = UserProfileContextProvider(
+        self.user_profile_provider = UserProfileContextProvider(
             analyser_client=self.haiku_client,
-            model=self.config.model,
-            history_source_id=self.history_provider.source_id,
         )
         self.execution_context_provider = ExecutionContextProvider(
             model=self.config.model,
             provider_family=self.provider_family,
             history_source_id=self.history_provider.source_id,
         )
-        self.content_understanding_provider = create_content_understanding_context_provider_from_env()
+        self.content_understanding_provider = (
+            create_content_understanding_context_provider_from_env()
+        )
         self.preference_policy_provider = PreferencePolicyProvider()
         self.compaction_provider = DemoCompactionProvider(
             history_source_id=self.history_provider.source_id,
@@ -111,8 +111,8 @@ class DemoApplication:
             client=self.chat_client,
             history_provider=self.history_provider,
             message_conversion_provider=self.message_conversion_provider,
-            memory_provider=self.memory_provider,
             extra_context_providers=[
+                self.user_profile_provider,
                 self.execution_context_provider,
                 *(
                     [self.content_understanding_provider]

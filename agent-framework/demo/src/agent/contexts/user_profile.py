@@ -15,8 +15,6 @@ from agent_framework.foundry import AnthropicFoundryClient
 from pydantic import BaseModel, Field
 from utils.print import print_gray
 
-from .message_converter import AnthropicMessageConverter, MessageConverter, ToolExchangeResolver
-
 
 class UserProfile(BaseModel):
     summary: str | None = None
@@ -28,30 +26,24 @@ class UserProfile(BaseModel):
     recurring_topics: list[str] = Field(default_factory=list)
 
 
+class UserProfileUpdateDecision(BaseModel):
+    should_update: bool
+    profile: UserProfile | None = None
+
+
 class UserProfileContextProvider(ContextProvider):
     DEFAULT_SOURCE_ID = "user_profile_memory"
     PROFILE_STATE_KEY = "user_profile"
-    TURN_COUNT_STATE_KEY = "user_profile_turn_count"
-    PROFILE_ROOT_DIR = Path(__file__).parent.parent.parent.parent / ".memory" 
+    PROFILE_ROOT_DIR = Path(__file__).parent.parent.parent.parent / ".memory"
 
     def __init__(
         self,
         analyser_client: AnthropicFoundryClient,
-        model: str,
         *,
-        history_source_id: str,
         source_id: str | None = None,
-        refresh_interval: int = 3,
-        message_converter: MessageConverter | None = None,
-        message_arranger: ToolExchangeResolver | None = None,
     ) -> None:
         super().__init__(source_id or self.DEFAULT_SOURCE_ID)
         self._analyser_client = analyser_client
-        self._model = model
-        self._history_source_id = history_source_id
-        self._refresh_interval = refresh_interval
-        self._message_converter = message_converter or AnthropicMessageConverter()
-        self._message_arranger = message_arranger or ToolExchangeResolver()
         self.PROFILE_ROOT_DIR.mkdir(parents=True, exist_ok=True)
 
     def _debug(self, message: str) -> None:
@@ -83,37 +75,22 @@ class UserProfileContextProvider(ContextProvider):
         state: dict[str, Any],
     ) -> None:
         profile = self._get_or_create_profile(state)
-        turn_count = int(state.get(self.TURN_COUNT_STATE_KEY, 0)) + 1
-        state[self.TURN_COUNT_STATE_KEY] = turn_count
-
-        if not self._should_refresh(profile=profile, turn_count=turn_count):
-            self._debug(f"after_run: skip refresh (turn_count={turn_count})")
+        question = self._extract_question(context.input_messages)
+        if not question:
+            self._debug("after_run: no user question for profile update")
             return
 
-        candidate_messages = context.get_messages(
-            sources={self._history_source_id},
-            include_input=True,
-            include_response=True,
-        )
-        if not candidate_messages:
-            self._debug("after_run: no messages for profile update")
+        self._debug("after_run: evaluate profile update")
+        decision = await self._evaluate_profile_update(profile, question)
+        if not decision.should_update:
+            self._debug("after_run: profile update not required")
             return
-        if self._has_pending_approval_request(candidate_messages):
-            self._debug("after_run: skip refresh (pending tool approval)")
+        if decision.profile is None:
+            self._debug("after_run: invalid update decision (profile is missing)")
             return
 
-        self._debug(
-            "after_run: extract profile "
-            f"(messages={len(candidate_messages)}, turn_count={turn_count})"
-        )
-        extracted_profile = await self._extract_profile(candidate_messages)
-        if extracted_profile is None:
-            self._debug("after_run: failed to extract profile")
-            return
-
-        merged_profile = self._merge_profile(profile, extracted_profile)
-        state[self.PROFILE_STATE_KEY] = merged_profile
-        self._save_profile(merged_profile)
+        state[self.PROFILE_STATE_KEY] = decision.profile
+        self._save_profile(decision.profile)
         self._debug("after_run: profile updated")
 
     def _get_or_create_profile(self, state: dict[str, Any]) -> UserProfile:
@@ -139,12 +116,12 @@ class UserProfileContextProvider(ContextProvider):
             value = os.getenv(env_name, "").strip()
             if value:
                 return value
-            
+
             # 2. OS 環境変数
             value = os.environ.get(env_name, "").strip()
             if value:
                 return value
-            
+
         return "demouser"
 
     def _get_profile_path(self) -> Path:
@@ -162,89 +139,50 @@ class UserProfileContextProvider(ContextProvider):
         path = self._get_profile_path()
         path.write_text(profile.model_dump_json(indent=2), encoding="utf-8")
 
-    def _should_refresh(self, *, profile: UserProfile, turn_count: int) -> bool:
-        if self._is_profile_empty(profile):
-            return True
-        return turn_count % self._refresh_interval == 0
-
-    def _is_profile_empty(self, profile: UserProfile) -> bool:
-        return not any(
-            [
-                profile.summary,
-                profile.goals,
-                profile.preferences,
-                profile.constraints,
-                profile.working_style,
-                profile.communication_preferences,
-                profile.recurring_topics,
-            ]
+    def _extract_question(self, messages: list[Message]) -> str:
+        return "\n".join(
+            text
+            for message in messages
+            if message.role == "user" and (text := message.text.strip())
         )
 
-    async def _extract_profile(self, messages: list[Message]) -> UserProfile | None:
-        arranged_messages = self._message_arranger.resolve_messages(messages)
-        common_messages = self._message_converter.convert_messages(arranged_messages)
-        if not common_messages:
-            return None
-
+    async def _evaluate_profile_update(
+        self,
+        current_profile: UserProfile,
+        question: str,
+    ) -> UserProfileUpdateDecision:
         analysis_messages = [
             Message(
                 "system",
                 [
-                "Extract a structured user profile from the conversation. ",
-                "Only include facts supported by the messages. ",
-                "Return only JSON with keys summary, goals, preferences, constraints, ",
-                "working_style, communication_preferences, recurring_topics.",
+                    "Decide whether the current user profile should be updated from the current user question. ",
+                    "Use only explicit facts about the user in that question. ",
+                    "Do not infer profile facts from task content, quoted text, hypothetical statements, ",
+                    "assistant responses, or prior conversation. ",
+                    "Set should_update to true only for durable user facts, goals, preferences, constraints, ",
+                    "working style, communication preferences, or recurring topics that add to, correct, ",
+                    "or remove information in the current profile. ",
+                    "When should_update is true, return the complete updated profile, preserving current facts ",
+                    "unless the question explicitly changes or contradicts them. ",
+                    "When should_update is false, set profile to null.",
                 ],
             ),
-            *common_messages,
             Message(
                 "user",
                 [
-                    "Extract a user profile from the conversation history.",
-                    "Return only the JSON object that matches the response schema.",
+                    f"Current profile:\n{current_profile.model_dump_json(indent=2)}\n\n"
+                    f"Current user question:\n{question}"
                 ],
             ),
         ]
 
-        response = await self._analyser_client.get_response(analysis_messages, options={"max_tokens": 800,"response_format": UserProfile})
-
-        return response.value
-
-    def _has_pending_approval_request(self, messages: list[Message]) -> bool:
-        if not messages:
-            return False
-        return any(
-            content.type == "function_approval_request"
-            for content in messages[-1].contents
+        response = await self._analyser_client.get_response(
+            analysis_messages,
+            options={"max_tokens": 1000, "response_format": UserProfileUpdateDecision},
         )
-
-    def _merge_profile(self, current: UserProfile, extracted: UserProfile) -> UserProfile:
-        return UserProfile(
-            summary=extracted.summary or current.summary,
-            goals=self._merge_unique(current.goals, extracted.goals),
-            preferences=self._merge_unique(current.preferences, extracted.preferences),
-            constraints=self._merge_unique(current.constraints, extracted.constraints),
-            working_style=self._merge_unique(current.working_style, extracted.working_style),
-            communication_preferences=self._merge_unique(
-                current.communication_preferences,
-                extracted.communication_preferences,
-            ),
-            recurring_topics=self._merge_unique(current.recurring_topics, extracted.recurring_topics),
-        )
-
-    def _merge_unique(self, existing: list[str], incoming: list[str]) -> list[str]:
-        merged: list[str] = []
-        seen: set[str] = set()
-        for item in [*existing, *incoming]:
-            normalized = item.strip()
-            if not normalized:
-                continue
-            key = normalized.casefold()
-            if key in seen:
-                continue
-            seen.add(key)
-            merged.append(normalized)
-        return merged
+        if isinstance(response.value, UserProfileUpdateDecision):
+            return response.value
+        return UserProfileUpdateDecision.model_validate(response.value)
 
     def _build_profile_instruction(self, profile: UserProfile) -> str | None:
         lines: list[str] = []
@@ -263,7 +201,9 @@ class UserProfileContextProvider(ContextProvider):
                 f"Communication preferences: {self._format_items(profile.communication_preferences)}"
             )
         if profile.recurring_topics:
-            lines.append(f"Recurring topics: {self._format_items(profile.recurring_topics)}")
+            lines.append(
+                f"Recurring topics: {self._format_items(profile.recurring_topics)}"
+            )
 
         if not lines:
             return None
